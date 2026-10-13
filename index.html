@@ -1147,7 +1147,7 @@
   <div id="virtual-pointer"></div>
 
   <!-- JARVIS OS Boot Splash (disguised as an app loader, no mention of audio) -->
-  <div id="audio-splash-overlay" onclick="engageAudioEngineInstant()" style="
+  <div id="audio-splash-overlay" onclick="engageAudioEngineInstant(event)" ontouchend="engageAudioEngineInstant(event)" style="
     position:fixed;top:0;left:0;width:100vw;height:100vh;
     background:#000;z-index:99999;
     display:flex;flex-direction:column;
@@ -1183,13 +1183,14 @@
         <div id="boot-log-last" style="color:#4ade80;">[ __ ] Awaiting authorization...</div>
       </div>
       <!-- Click to open button -->
-      <div id="splash-open-btn" style="
+      <div id="splash-open-btn" onclick="engageAudioEngineInstant(event)" ontouchend="engageAudioEngineInstant(event)" style="
         margin-top:20px;padding:14px 52px;
         border:1.5px solid #4ade80;border-radius:4px;
         color:#000;background:#4ade80;
         font-size:0.95rem;letter-spacing:4px;font-weight:900;
         text-transform:uppercase;
         box-shadow:0 0 24px rgba(74,222,128,0.45);
+        cursor:pointer;user-select:none;
         transition:all 0.2s;
       ">▶ CLICK TO OPEN</div>
       <div style="color:rgba(74,222,128,0.3);font-size:0.58rem;letter-spacing:2px;margin-top:4px;">AUTHORIZED ACCESS ONLY</div>
@@ -1649,16 +1650,18 @@
     function hideAudioSplash() {
       const splash = document.getElementById("audio-splash-overlay");
       if (splash) {
-        splash.style.transition = "opacity 0.4s ease";
+        splash.style.pointerEvents = "none";
+        splash.style.transition = "opacity 0.25s ease";
         splash.style.opacity = "0";
-        setTimeout(() => { splash.style.display = "none"; }, 420);
+        setTimeout(() => {
+          splash.style.display = "none";
+        }, 260);
       }
       const banner = document.getElementById("autoplay-hud-banner");
       if (banner) banner.style.display = "none";
     }
 
     function showAutoplayBanner() {
-      // Keep using the splash overlay instead
       showAudioSplash();
     }
 
@@ -1670,44 +1673,88 @@
     function requestAppFullscreen() {
       const el = document.documentElement;
       try {
-        if (el.requestFullscreen)           el.requestFullscreen();
-        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-        else if (el.mozRequestFullScreen)    el.mozRequestFullScreen();
-        else if (el.msRequestFullscreen)     el.msRequestFullscreen();
-      } catch(e) { /* silently fail if denied */ }
+        let p = null;
+        if (el.requestFullscreen)           p = el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) p = el.webkitRequestFullscreen();
+        else if (el.mozRequestFullScreen)    p = el.mozRequestFullScreen();
+        else if (el.msRequestFullscreen)     p = el.msRequestFullscreen();
+        if (p && typeof p.catch === "function") {
+          p.catch(() => {});
+        }
+      } catch(e) { /* silently ignore if denied */ }
     }
 
-    function engageAudioEngineInstant() {
-      // Called when user clicks anywhere on the splash — start audio silently, go fullscreen
-      setupBgmGainNode();
+    function engageAudioEngineInstant(e) {
+      if (e && typeof e.stopPropagation === "function") {
+        e.stopPropagation();
+      }
+
+      // 1. Instantly hide the splash screen — guarantees the click always opens the app!
+      hideAudioSplash();
+      fsEnforceActive = true;
+
+      // 2. Synchronously request fullscreen while we still have the user gesture token
+      requestAppFullscreen();
+
+      // 3. Resume AudioContext synchronously inside this user gesture
       const ctx = getAudioContext();
-      const startPlay = () => {
-        bgmAudio && bgmAudio.play().then(() => {
-          isPlayingKhalifa = true;
-          updateAudioDeckUI(true);
-          hideAudioSplash();
-          fsEnforceActive = true;  // start enforcing fullscreen from now on
-          // NO toast — audio is hidden from user
-          requestAppFullscreen();
-        }).catch(e => console.warn("play error:", e));
-      };
-      if (ctx && ctx.state === 'suspended') {
-        ctx.resume().then(startPlay);
+      if (ctx && ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
+      setupBgmGainNode();
+
+      // 4. Start audio playback
+      isPlayingKhalifa = true;
+      updateAudioDeckUI(true);
+
+      if (bgmAudio) {
+        bgmAudio.volume = 1.0;
+        if (bgmGainNode && ctx) {
+          try {
+            bgmGainNode.gain.setValueAtTime(khalifaVolumeLevel, ctx.currentTime);
+          } catch(err) {}
+        }
+        const p = bgmAudio.play();
+        if (p !== undefined) {
+          p.catch((err) => {
+            console.warn("Direct play failed, starting synthesis fallback:", err);
+            startKhalifaSequence();
+          });
+        }
       } else {
-        startPlay();
+        startKhalifaSequence();
+      }
+    }
+
+    // Attach explicit click and touch listeners to splash overlay and button
+    function attachSplashListeners() {
+      const splash = document.getElementById("audio-splash-overlay");
+      const btn = document.getElementById("splash-open-btn");
+      if (splash) {
+        splash.addEventListener("click", engageAudioEngineInstant);
+        splash.addEventListener("touchend", engageAudioEngineInstant);
+      }
+      if (btn) {
+        btn.addEventListener("click", engageAudioEngineInstant);
+        btn.addEventListener("touchend", engageAudioEngineInstant);
       }
     }
 
     // Attempt silent autoplay first; if blocked, show the splash overlay
     function autoStartAudio() {
+      attachSplashListeners();
       setupBgmGainNode();
       const ctx = getAudioContext();
-      if (ctx && ctx.state === 'suspended') ctx.resume();
+      if (ctx && ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
 
       if (bgmAudio) {
         bgmAudio.volume = 1.0;
         if (bgmGainNode && ctx) {
-          bgmGainNode.gain.setValueAtTime(khalifaVolumeLevel, ctx.currentTime);
+          try {
+            bgmGainNode.gain.setValueAtTime(khalifaVolumeLevel, ctx.currentTime);
+          } catch(err) {}
         }
         const playPromise = bgmAudio.play();
         if (playPromise !== undefined) {
@@ -1715,15 +1762,15 @@
             isPlayingKhalifa = true;
             updateAudioDeckUI(true);
             hideAudioSplash();
-            fsEnforceActive = true;  // start enforcing fullscreen from now on
-            // NO toast — silent launch
+            fsEnforceActive = true;
             requestAppFullscreen();
           }).catch((err) => {
-            // Autoplay blocked — show the splash so user must click once
-            console.log("Autoplay blocked, showing splash:", err);
+            // Autoplay blocked — ensure splash is visible for user click
             showAudioSplash();
           });
         }
+      } else {
+        showAudioSplash();
       }
     }
 
