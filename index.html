@@ -1,0 +1,3293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JARVIS &mdash; Green Hacker Spatial Calculator</title>
+  
+  <!-- Cyberpunk & Sci-Fi Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;900&family=Share+Tech+Mono&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ==========================================================
+       GREEN HACKER JARVIS COLOR PALETTE
+       ========================================================== */
+    :root {
+      --bg-space: #020804;
+      --bg-deep: #041007;
+      --bg-surface: rgba(4, 20, 10, 0.88);
+      --bg-panel: rgba(6, 26, 13, 0.94);
+      
+      --jarvis-green: #00ff66;
+      --jarvis-green-bright: #39ff14;
+      --jarvis-glow: rgba(0, 255, 102, 0.45);
+      --jarvis-glow-intense: rgba(0, 255, 102, 0.85);
+      --jarvis-dark-green: #052e16;
+      --jarvis-muted-green: #15803d;
+      --jarvis-border: rgba(0, 255, 102, 0.35);
+      --jarvis-border-light: rgba(0, 255, 102, 0.15);
+      
+      --text-main: #f0fdf4;
+      --text-muted: #86efac;
+      --text-dim: #4ade80;
+      
+      --btn-bg: rgba(6, 26, 13, 0.85);
+      --btn-hover: rgba(0, 255, 102, 0.22);
+      --btn-active: rgba(0, 255, 102, 0.4);
+      
+      --font-display: 'Orbitron', monospace, sans-serif;
+      --font-hud: 'Share Tech Mono', monospace;
+      --font-code: 'JetBrains Mono', monospace;
+      
+      --spatial-tilt-x: 0deg;
+      --spatial-tilt-y: 0deg;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg-space);
+      font-family: var(--font-hud);
+      color: var(--text-main);
+      overflow-x: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 1400px;
+      position: relative;
+    }
+
+    /* ==========================================================
+       ANIMATED MATRIX DIGITAL RAIN & JARVIS BACKGROUND
+       ========================================================== */
+    #matrix-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.35;
+    }
+
+    .jarvis-ambient-pulse {
+      position: fixed;
+      width: 700px;
+      height: 700px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 255, 102, 0.12) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 1;
+      animation: ambientGlow 8s infinite alternate ease-in-out;
+    }
+    @keyframes ambientGlow {
+      0% { transform: scale(0.9); opacity: 0.5; }
+      100% { transform: scale(1.15); opacity: 0.85; }
+    }
+
+    .hud-scanlines {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 255, 102, 0.02) 0px,
+        rgba(0, 255, 102, 0.02) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .spatial-grid-floor {
+      position: fixed;
+      bottom: -30vh;
+      left: -50vw;
+      width: 200vw;
+      height: 100vh;
+      background-image: 
+        linear-gradient(rgba(0, 255, 102, 0.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 102, 0.12) 1px, transparent 1px);
+      background-size: 45px 45px;
+      transform: rotateX(72deg);
+      transform-origin: center bottom;
+      pointer-events: none;
+      z-index: 1;
+      mask-image: radial-gradient(ellipse at 50% 50%, black 20%, transparent 80%);
+      -webkit-mask-image: radial-gradient(ellipse at 50% 50%, black 20%, transparent 80%);
+    }
+
+    /* ==========================================================
+       3D SPATIAL RIG & VIEWPORT
+       ========================================================== */
+    .spatial-viewport {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 480px;
+      padding: 20px 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .spatial-rig {
+      position: relative;
+      width: 100%;
+      transform-style: preserve-3d;
+      transform: rotateX(var(--spatial-tilt-x)) rotateY(var(--spatial-tilt-y));
+      transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.3, 1);
+    }
+
+    /* ==========================================================
+       TOP TELEMETRY & JARVIS HUD BAR
+       ========================================================== */
+    .hud-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      margin-bottom: 12px;
+      padding: 0 4px;
+      transform: translateZ(20px);
+    }
+
+    .hud-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .mini-arc-reactor {
+      position: relative;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 1.5px solid var(--jarvis-green);
+      box-shadow: 0 0 16px var(--jarvis-glow), inset 0 0 12px var(--jarvis-glow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle, rgba(0, 255, 102, 0.3) 0%, rgba(2, 10, 4, 0.9) 75%);
+      animation: reactorPulse 3.5s infinite ease-in-out;
+    }
+
+    .mini-arc-reactor::before {
+      content: '';
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1.5px dashed var(--jarvis-green-bright);
+      animation: rotateRings 6s linear infinite;
+    }
+
+    .mini-arc-reactor::after {
+      content: '';
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 0 12px var(--jarvis-green-bright);
+    }
+
+    @keyframes rotateRings {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes reactorPulse {
+      0%, 100% { box-shadow: 0 0 14px var(--jarvis-glow), inset 0 0 8px var(--jarvis-glow); }
+      50% { box-shadow: 0 0 28px var(--jarvis-green-bright), inset 0 0 16px var(--jarvis-green-bright); }
+    }
+
+    .hud-title-box h1 {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, #ffffff 0%, var(--jarvis-green) 50%, var(--jarvis-green-bright) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 16px var(--jarvis-glow);
+    }
+
+    .hud-title-box .hud-sub {
+      font-family: var(--font-hud);
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--jarvis-green);
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--jarvis-green-bright);
+      box-shadow: 0 0 10px var(--jarvis-green-bright);
+      animation: blinkDot 1.5s infinite;
+    }
+    @keyframes blinkDot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .hud-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .hud-icon-btn {
+      position: relative;
+      background: rgba(4, 20, 10, 0.85);
+      border: 1px solid var(--jarvis-border);
+      color: var(--jarvis-green);
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0, 255, 102, 0.15);
+      transition: all 0.2s ease;
+    }
+    .hud-icon-btn:hover {
+      border-color: var(--jarvis-green-bright);
+      box-shadow: 0 0 16px var(--jarvis-glow);
+      transform: translateY(-2px);
+    }
+    .hud-icon-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    .fart-sfx-badge {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--jarvis-green);
+      background: rgba(0, 255, 102, 0.1);
+      border: 1px solid var(--jarvis-border);
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+
+    /* ==========================================================
+       KHALIFA MALAYALAM MOVIE BGM MODULE DECK
+       ========================================================== */
+    .khalifa-audio-deck {
+      width: 100%;
+      background: linear-gradient(135deg, rgba(5, 35, 15, 0.95) 0%, rgba(2, 18, 8, 0.95) 100%);
+      border: 1.5px solid var(--jarvis-green);
+      border-radius: 12px;
+      padding: 9px 14px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      box-shadow: 0 0 20px rgba(0, 255, 102, 0.25);
+      transform: translateZ(20px);
+    }
+
+    .khalifa-title-tag {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      color: var(--jarvis-green-bright);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .khalifa-controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .khalifa-play-toggle-btn {
+      background: var(--jarvis-green);
+      border: none;
+      color: #020804;
+      font-family: var(--font-display);
+      font-size: 0.75rem;
+      font-weight: 900;
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 0 14px var(--jarvis-glow-intense);
+      transition: all 0.2s ease;
+    }
+    .khalifa-play-toggle-btn:hover {
+      background: var(--jarvis-green-bright);
+      transform: scale(1.04);
+    }
+    .khalifa-play-toggle-btn.is-playing {
+      background: #ef4444;
+      color: #ffffff;
+      box-shadow: 0 0 16px rgba(239, 68, 68, 0.6);
+    }
+
+    /* Bouncing Equalizer Bars & Disc */
+    .audio-disk-spin {
+      display: inline-block;
+      transition: transform 0.3s ease;
+    }
+    .khalifa-audio-deck.active .audio-disk-spin {
+      animation: diskSpin 2.5s linear infinite;
+    }
+    @keyframes diskSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .khalifa-eq-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+      height: 18px;
+    }
+    .khalifa-eq-bar {
+      width: 3.5px;
+      height: 4px;
+      background: var(--jarvis-green);
+      border-radius: 2px;
+      transition: height 0.1s ease;
+    }
+    .khalifa-audio-deck.active .khalifa-eq-bar {
+      animation: eqBounce 0.5s infinite alternate ease-in-out;
+    }
+    .khalifa-audio-deck.active .khalifa-eq-bar:nth-child(1) { animation-delay: 0.05s; }
+    .khalifa-audio-deck.active .khalifa-eq-bar:nth-child(2) { animation-delay: 0.25s; }
+    .khalifa-audio-deck.active .khalifa-eq-bar:nth-child(3) { animation-delay: 0.12s; }
+    .khalifa-audio-deck.active .khalifa-eq-bar:nth-child(4) { animation-delay: 0.35s; }
+    .khalifa-audio-deck.active .khalifa-eq-bar:nth-child(5) { animation-delay: 0.18s; }
+    .khalifa-audio-deck.active .khalifa-eq-bar:nth-child(6) { animation-delay: 0.3s; }
+    .khalifa-audio-deck.active .khalifa-eq-bar:nth-child(7) { animation-delay: 0.1s; }
+    @keyframes eqBounce {
+      0% { height: 3px; opacity: 0.5; }
+      100% { height: 18px; opacity: 1; background: var(--jarvis-green-bright); box-shadow: 0 0 8px var(--jarvis-green); }
+    }
+
+    .audio-vol-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .khalifa-vol-slider {
+      width: 65px;
+      accent-color: var(--jarvis-green);
+      cursor: pointer;
+    }
+
+    /* Floating Autoplay Activation HUD Banner */
+    .autoplay-hud-banner {
+      position: fixed;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 99999;
+      background: rgba(2, 14, 5, 0.95);
+      border: 1.5px solid var(--jarvis-green-bright);
+      box-shadow: 0 0 25px rgba(0, 255, 102, 0.45), inset 0 0 15px rgba(0, 255, 102, 0.2);
+      border-radius: 30px;
+      padding: 8px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #39ff14;
+      font-family: var(--font-hud);
+      font-size: 0.76rem;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      cursor: pointer;
+      animation: bannerGlow 1.5s infinite alternate ease-in-out;
+      backdrop-filter: blur(10px);
+    }
+    @keyframes bannerGlow {
+      0% { box-shadow: 0 0 15px rgba(0, 255, 102, 0.3); border-color: #00ff66; }
+      100% { box-shadow: 0 0 35px rgba(57, 255, 20, 0.7); border-color: #39ff14; }
+    }
+    .autoplay-pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #39ff14;
+      box-shadow: 0 0 10px #39ff14;
+      animation: pulseDot 1s infinite alternate;
+    }
+    @keyframes pulseDot {
+      0% { opacity: 0.4; transform: scale(0.8); }
+      100% { opacity: 1; transform: scale(1.3); }
+    }
+    .autoplay-hud-btn {
+      background: var(--jarvis-green-bright);
+      color: #020804;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      transition: all 0.2s;
+    }
+    .autoplay-hud-btn:hover {
+      background: #ffffff;
+      box-shadow: 0 0 10px #39ff14;
+    }
+
+    /* ==========================================================
+       COMMAND DOCK: VOICE & GESTURE CONTROLS
+       ========================================================== */
+    .command-deck {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      margin-bottom: 12px;
+      transform: translateZ(20px);
+    }
+
+    .deck-voice-btn {
+      flex: 1.3;
+      background: linear-gradient(135deg, rgba(0, 255, 102, 0.15) 0%, rgba(4, 35, 15, 0.8) 100%);
+      border: 1.5px solid var(--jarvis-green);
+      border-radius: 12px;
+      color: #ffffff;
+      font-family: var(--font-display);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 0 16px rgba(0, 255, 102, 0.25);
+      transition: all 0.2s ease;
+    }
+    .deck-voice-btn:hover {
+      box-shadow: 0 0 24px var(--jarvis-glow-intense);
+      transform: translateY(-2px);
+    }
+    .deck-voice-btn.is-listening {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(30, 10, 10, 0.8) 100%);
+      border-color: #ef4444;
+      animation: pulseListening 1.2s infinite;
+    }
+    @keyframes pulseListening {
+      0%, 100% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.4); }
+      50% { box-shadow: 0 0 24px rgba(239, 68, 68, 0.8); }
+    }
+
+    .voice-btn-content {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .voice-btn-content svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    .sound-waves {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      height: 18px;
+    }
+    .wave-bar {
+      width: 3px;
+      height: 6px;
+      background: var(--jarvis-green);
+      border-radius: 2px;
+      transition: height 0.15s ease;
+    }
+    .deck-voice-btn.is-listening .wave-bar {
+      background: #ffffff;
+      animation: waveBounce 0.7s infinite alternate;
+    }
+    .deck-voice-btn.is-listening .wave-bar:nth-child(1) { animation-delay: 0.1s; }
+    .deck-voice-btn.is-listening .wave-bar:nth-child(2) { animation-delay: 0.3s; }
+    .deck-voice-btn.is-listening .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+    .deck-voice-btn.is-listening .wave-bar:nth-child(4) { animation-delay: 0.4s; }
+    @keyframes waveBounce {
+      0% { height: 4px; }
+      100% { height: 18px; }
+    }
+
+    .deck-gesture-btn {
+      flex: 1;
+      background: linear-gradient(135deg, rgba(0, 255, 102, 0.12) 0%, rgba(4, 25, 12, 0.8) 100%);
+      border: 1.5px solid var(--jarvis-green);
+      border-radius: 12px;
+      color: var(--jarvis-green);
+      font-family: var(--font-display);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 10px 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 0 16px rgba(0, 255, 102, 0.2);
+      transition: all 0.2s ease;
+    }
+    .deck-gesture-btn:hover {
+      box-shadow: 0 0 24px var(--jarvis-glow-intense);
+      color: #ffffff;
+      transform: translateY(-2px);
+    }
+    .deck-gesture-btn.active {
+      background: linear-gradient(135deg, var(--jarvis-green) 0%, #059669 100%);
+      color: #020804;
+      border-color: #ffffff;
+      font-weight: 900;
+      box-shadow: 0 0 24px var(--jarvis-glow-intense);
+    }
+    .deck-gesture-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    /* Terminal Command Input Bar */
+    .fallback-command-bar {
+      width: 100%;
+      margin-bottom: 12px;
+      display: flex;
+      gap: 6px;
+      transform: translateZ(20px);
+    }
+    .fallback-input {
+      flex: 1;
+      background: rgba(4, 18, 8, 0.95);
+      border: 1px solid var(--jarvis-border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: var(--jarvis-green);
+      font-family: var(--font-hud);
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+    .fallback-input:focus {
+      border-color: var(--jarvis-green-bright);
+      box-shadow: 0 0 16px var(--jarvis-glow);
+    }
+    .fallback-send-btn {
+      background: rgba(0, 255, 102, 0.15);
+      border: 1px solid var(--jarvis-green);
+      color: var(--jarvis-green);
+      font-family: var(--font-hud);
+      font-size: 0.88rem;
+      font-weight: 700;
+      padding: 0 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .fallback-send-btn:hover {
+      background: var(--jarvis-green);
+      color: #020804;
+      box-shadow: 0 0 16px var(--jarvis-glow);
+    }
+
+    /* ==========================================================
+       ADVANCED GESTURE MONITOR HUD & REAL-TIME SKELETON CANVAS
+       ========================================================== */
+    .gesture-monitor-panel {
+      display: none;
+      width: 100%;
+      background: rgba(3, 14, 6, 0.96);
+      border: 2px solid var(--jarvis-green);
+      border-radius: 18px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 0 30px rgba(0, 255, 102, 0.25);
+      transform: translateZ(30px);
+      flex-direction: column;
+      gap: 10px;
+    }
+    .gesture-monitor-panel.active {
+      display: flex;
+    }
+
+    .gesture-hud-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .gesture-telemetry {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-hud);
+      font-size: 0.82rem;
+      color: var(--jarvis-green);
+      font-weight: 700;
+    }
+    .gesture-badge-status {
+      background: rgba(0, 255, 102, 0.15);
+      border: 1px solid var(--jarvis-green);
+      color: var(--jarvis-green-bright);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.76rem;
+      text-transform: uppercase;
+    }
+
+    .gesture-video-wrapper {
+      position: relative;
+      width: 100%;
+      height: 140px;
+      background: #020804;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--jarvis-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #webcam-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+    #gesture-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      transform: scaleX(-1);
+      pointer-events: none;
+    }
+
+    .gesture-action-pills {
+      display: flex;
+      gap: 6px;
+      justify-content: space-between;
+    }
+    .gesture-pill-test {
+      flex: 1;
+      background: rgba(0, 255, 102, 0.08);
+      border: 1px solid var(--jarvis-border);
+      padding: 6px 3px;
+      border-radius: 8px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--jarvis-green);
+      cursor: pointer;
+      text-align: center;
+      font-family: var(--font-hud);
+      transition: all 0.15s ease;
+    }
+    .gesture-pill-test:hover,
+    .gesture-pill-test.highlighted {
+      background: var(--jarvis-green);
+      color: #020804;
+      font-weight: 900;
+      box-shadow: 0 0 14px var(--jarvis-glow-intense);
+    }
+
+    #virtual-pointer {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border: 2px solid var(--jarvis-green-bright);
+      border-radius: 50%;
+      background: rgba(0, 255, 102, 0.35);
+      box-shadow: 0 0 20px var(--jarvis-green-bright);
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      display: none;
+      transition: transform 0.06s ease;
+    }
+    #virtual-pointer::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 6px;
+      height: 6px;
+      background: #ffffff;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* ==========================================================
+       MAIN HOLOGRAPHIC JARVIS CHASSIS
+       ========================================================== */
+    .spatial-chassis {
+      position: relative;
+      width: 100%;
+      background: var(--bg-surface);
+      border: 2px solid var(--jarvis-border);
+      border-radius: 26px;
+      padding: 22px;
+      box-shadow: 
+        0 20px 50px -10px rgba(0, 0, 0, 0.9),
+        0 0 35px rgba(0, 255, 102, 0.25),
+        inset 0 0 25px rgba(0, 255, 102, 0.06);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      transform-style: preserve-3d;
+      transform: translateZ(10px);
+      overflow: hidden;
+    }
+
+    .spatial-chassis::before,
+    .spatial-chassis::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .spatial-chassis::before {
+      top: 8px;
+      left: 8px;
+      border-top: 2px solid var(--jarvis-green);
+      border-left: 2px solid var(--jarvis-green);
+    }
+    .spatial-chassis::after {
+      bottom: 8px;
+      right: 8px;
+      border-bottom: 2px solid var(--jarvis-green);
+      border-right: 2px solid var(--jarvis-green);
+    }
+
+    /* ==========================================================
+       HOLOGRAPHIC DIGITAL HUD DISPLAY SCREEN
+       ========================================================== */
+    .spatial-screen {
+      position: relative;
+      background: linear-gradient(145deg, rgba(2, 14, 6, 0.95) 0%, rgba(4, 24, 10, 0.95) 100%);
+      border: 1.5px solid var(--jarvis-border);
+      border-radius: 18px;
+      padding: 16px 20px;
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      box-shadow: 
+        inset 0 2px 10px rgba(0, 0, 0, 0.8),
+        0 0 20px rgba(0, 255, 102, 0.15);
+      transform: translateZ(30px);
+    }
+
+    .screen-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(0, 255, 102, 0.15);
+      padding-bottom: 6px;
+    }
+
+    .quantum-status {
+      font-family: var(--font-hud);
+      font-size: 0.76rem;
+      letter-spacing: 0.1em;
+      color: var(--jarvis-green);
+      font-weight: 700;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .screen-badge {
+      font-family: var(--font-hud);
+      font-size: 0.72rem;
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      padding: 3px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: all 0.2s ease;
+    }
+    .screen-badge:hover {
+      background: #ef4444;
+      color: #ffffff;
+      box-shadow: 0 0 12px #ef4444;
+    }
+
+    .screen-expression {
+      font-family: var(--font-code);
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      min-height: 22px;
+      text-align: right;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-top: 4px;
+    }
+
+    .screen-value-container {
+      display: flex;
+      justify-content: flex-end;
+      align-items: baseline;
+      overflow: hidden;
+    }
+
+    .screen-value {
+      font-family: var(--font-display);
+      font-size: 2.85rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+      text-shadow: 0 0 20px var(--jarvis-green-bright), 0 0 35px var(--jarvis-green);
+      white-space: nowrap;
+      text-align: right;
+      max-width: 100%;
+      overflow-x: auto;
+      scrollbar-width: none;
+      line-height: 1.15;
+      transition: font-size 0.15s ease, color 0.15s ease;
+    }
+
+    .screen-value.error-state {
+      color: #ef4444;
+      text-shadow: 0 0 20px #ef4444;
+      font-size: 1.7rem;
+      animation: shake 0.35s ease;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+
+    /* ==========================================================
+       KEYPAD GRID & HACKER BUTTONS
+       ========================================================= */
+    .keypad-matrix {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      transform: translateZ(25px);
+    }
+
+    .spatial-key {
+      position: relative;
+      aspect-ratio: 1;
+      background: var(--btn-bg);
+      border: 1px solid var(--jarvis-border);
+      border-radius: 16px;
+      color: var(--text-main);
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      font-weight: 700;
+      cursor: pointer;
+      outline: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 
+        0 6px 14px rgba(0, 0, 0, 0.6),
+        inset 0 1px 1px rgba(0, 255, 102, 0.15);
+      transform: translateZ(0px);
+      transition: all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .spatial-key:hover,
+    .spatial-key.gesture-hover {
+      transform: translateZ(14px) translateY(-3px) scale(1.05);
+      background: var(--btn-hover);
+      border-color: var(--jarvis-green-bright);
+      color: #ffffff;
+      box-shadow: 
+        0 12px 24px rgba(0, 255, 102, 0.35),
+        0 0 20px var(--jarvis-glow-intense);
+    }
+
+    .spatial-key:active,
+    .spatial-key.key-pressed {
+      transform: translateY(2px) scale(0.96);
+      background: var(--btn-active);
+      box-shadow: 0 0 16px var(--jarvis-green);
+    }
+
+    .key-op {
+      background: rgba(0, 255, 102, 0.12);
+      border-color: rgba(0, 255, 102, 0.4);
+      color: var(--jarvis-green);
+      font-size: 1.45rem;
+    }
+    .key-op:hover {
+      background: rgba(0, 255, 102, 0.25);
+      color: #ffffff;
+    }
+    .key-op.is-active-op {
+      background: var(--jarvis-green);
+      color: #020804;
+      border-color: #ffffff;
+      box-shadow: 0 0 24px var(--jarvis-glow-intense);
+    }
+
+    .key-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #f87171;
+      font-size: 1.15rem;
+    }
+    .key-danger:hover {
+      background: rgba(239, 68, 68, 0.3);
+      border-color: #ef4444;
+      color: #ffffff;
+      box-shadow: 0 0 18px rgba(239, 68, 68, 0.6);
+    }
+
+    .key-eq {
+      background: linear-gradient(135deg, var(--jarvis-green) 0%, #059669 100%);
+      border: 1px solid #ffffff;
+      color: #020804;
+      font-size: 1.6rem;
+      font-weight: 900;
+      box-shadow: 0 0 25px var(--jarvis-glow-intense);
+    }
+    .key-eq:hover {
+      box-shadow: 0 0 35px var(--jarvis-green-bright);
+      transform: translateZ(16px) scale(1.06);
+    }
+
+    .key-backspace svg {
+      width: 22px;
+      height: 22px;
+      fill: currentColor;
+    }
+
+    .spatial-toast {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-30px);
+      background: var(--jarvis-green);
+      color: #020804;
+      font-family: var(--font-hud);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      padding: 6px 16px;
+      border-radius: 30px;
+      box-shadow: 0 0 20px var(--jarvis-green-bright);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s ease;
+      z-index: 100;
+    }
+    .spatial-toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .fart-pop {
+      position: absolute;
+      font-size: 1.3rem;
+      pointer-events: none;
+      z-index: 1000;
+      animation: fartFloat 0.7s ease-out forwards;
+    }
+    @keyframes fartFloat {
+      0% { opacity: 1; transform: translate(-50%, -50%) scale(0.6); }
+      50% { transform: translate(-50%, -80%) scale(1.3); }
+      100% { opacity: 0; transform: translate(-50%, -120%) scale(0.9); }
+    }
+
+    /* History Drawer */
+    .history-drawer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(3, 14, 6, 0.98);
+      border: 1.5px solid var(--jarvis-green);
+      border-radius: 26px;
+      z-index: 50;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      transform: translateY(105%);
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 0 40px rgba(0, 255, 102, 0.3);
+    }
+    .history-drawer.open {
+      transform: translateY(0);
+    }
+    .history-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 1.5px solid var(--jarvis-border);
+    }
+    .history-topbar h2 {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      color: var(--jarvis-green);
+    }
+    .history-feed {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 16px 0;
+    }
+    .history-card {
+      background: rgba(0, 255, 102, 0.05);
+      border: 1px solid var(--jarvis-border);
+      border-radius: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+      transition: all 0.2s ease;
+    }
+    .history-card:hover {
+      background: rgba(0, 255, 102, 0.15);
+      border-color: var(--jarvis-green-bright);
+      transform: translateX(-3px);
+    }
+    .history-card .h-expr {
+      font-family: var(--font-code);
+      font-size: 0.82rem;
+      color: var(--text-dim);
+    }
+    .history-card .h-res {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--jarvis-green);
+    }
+    .btn-clear-history {
+      width: 100%;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid #ef4444;
+      color: #f87171;
+      font-family: var(--font-hud);
+      font-size: 0.9rem;
+      font-weight: 700;
+      padding: 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-clear-history:hover {
+      background: #ef4444;
+      color: #ffffff;
+    }
+
+    .hud-footer {
+      margin-top: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      padding: 0 6px;
+      font-family: var(--font-hud);
+      font-size: 0.76rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Animated Matrix Digital Rain Canvas -->
+  <canvas id="matrix-canvas"></canvas>
+  <div class="jarvis-ambient-pulse"></div>
+  <div class="hud-scanlines"></div>
+  <div class="spatial-grid-floor"></div>
+
+  <!-- Virtual Pointer for Gesture Control -->
+  <div id="virtual-pointer"></div>
+
+  <!-- JARVIS OS Boot Splash (disguised as an app loader, no mention of audio) -->
+  <div id="audio-splash-overlay" onclick="engageAudioEngineInstant()" style="
+    position:fixed;top:0;left:0;width:100vw;height:100vh;
+    background:#000;z-index:99999;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    cursor:pointer;gap:0;
+    font-family:'Orbitron','Share Tech Mono','Courier New',monospace;
+    overflow:hidden;
+  ">
+    <!-- Animated scanline overlay -->
+    <div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,100,0.015) 2px,rgba(0,255,100,0.015) 4px);pointer-events:none;"></div>
+    <!-- Corner brackets -->
+    <div style="position:absolute;top:24px;left:24px;width:40px;height:40px;border-top:2px solid #4ade80;border-left:2px solid #4ade80;opacity:0.6;"></div>
+    <div style="position:absolute;top:24px;right:24px;width:40px;height:40px;border-top:2px solid #4ade80;border-right:2px solid #4ade80;opacity:0.6;"></div>
+    <div style="position:absolute;bottom:24px;left:24px;width:40px;height:40px;border-bottom:2px solid #4ade80;border-left:2px solid #4ade80;opacity:0.6;"></div>
+    <div style="position:absolute;bottom:24px;right:24px;width:40px;height:40px;border-bottom:2px solid #4ade80;border-right:2px solid #4ade80;opacity:0.6;"></div>
+    <!-- Top status line -->
+    <div style="position:absolute;top:28px;left:50%;transform:translateX(-50%);color:#4ade80;font-size:0.65rem;letter-spacing:4px;opacity:0.7;">JARVIS OS // v7.4.1 // SECURE BOOT</div>
+    <!-- Main logo -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:18px;">
+      <!-- Arc reactor icon -->
+      <div style="width:80px;height:80px;border-radius:50%;border:2px solid #4ade80;display:flex;align-items:center;justify-content:center;position:relative;animation:pulse-glow 2s ease-in-out infinite alternate;box-shadow:0 0 30px rgba(74,222,128,0.3);">
+        <div style="width:52px;height:52px;border-radius:50%;border:1.5px solid rgba(74,222,128,0.5);display:flex;align-items:center;justify-content:center;">
+          <div style="width:28px;height:28px;border-radius:50%;background:radial-gradient(circle,#4ade80,#16a34a);box-shadow:0 0 16px #4ade80;"></div>
+        </div>
+      </div>
+      <div style="color:#4ade80;font-size:2rem;font-weight:900;letter-spacing:8px;">JARVIS</div>
+      <div style="color:rgba(74,222,128,0.5);font-size:0.75rem;letter-spacing:6px;">QUANTUM CALCULATOR // OS</div>
+      <!-- Boot log lines -->
+      <div id="boot-log" style="margin-top:8px;text-align:left;font-size:0.6rem;color:rgba(74,222,128,0.55);letter-spacing:1px;line-height:1.9;min-height:80px;">
+        <div>[ OK ] Initializing core modules...</div>
+        <div>[ OK ] Loading math engine v7.4...</div>
+        <div>[ OK ] Gesture subsystem ready...</div>
+        <div id="boot-log-last" style="color:#4ade80;">[ __ ] Awaiting authorization...</div>
+      </div>
+      <!-- Click to open button -->
+      <div id="splash-open-btn" style="
+        margin-top:20px;padding:14px 52px;
+        border:1.5px solid #4ade80;border-radius:4px;
+        color:#000;background:#4ade80;
+        font-size:0.95rem;letter-spacing:4px;font-weight:900;
+        text-transform:uppercase;
+        box-shadow:0 0 24px rgba(74,222,128,0.45);
+        transition:all 0.2s;
+      ">▶ CLICK TO OPEN</div>
+      <div style="color:rgba(74,222,128,0.3);font-size:0.58rem;letter-spacing:2px;margin-top:4px;">AUTHORIZED ACCESS ONLY</div>
+    </div>
+    <!-- Bottom status -->
+    <div style="position:absolute;bottom:28px;left:50%;transform:translateX(-50%);color:rgba(74,222,128,0.4);font-size:0.58rem;letter-spacing:3px;">SYS.SECURE // AES-256 // QUANTUM-LOCKED</div>
+  </div>
+
+  <!-- Instant Autoplay Activation HUD Banner (fallback top bar) -->
+  <div id="autoplay-hud-banner" class="autoplay-hud-banner" onclick="engageAudioEngineInstant()" style="display:none;" title="Click anywhere to activate">
+    <span class="autoplay-pulse-dot"></span>
+    <span>⚡ JARVIS OS READY // TAP ANYWHERE TO OPEN ⚡</span>
+    <span class="autoplay-hud-btn">OPEN ▶</span>
+  </div>
+
+  <!-- 3D Spatial Viewport Container -->
+  <div class="spatial-viewport" id="spatial-viewport">
+    <div class="spatial-rig" id="spatial-rig">
+
+      <!-- Header Telemetry Bar -->
+      <header class="hud-header">
+        <div class="hud-brand">
+          <div class="mini-arc-reactor" title="JARVIS Quantum Arc Core Active"></div>
+          <div class="hud-title-box">
+            <h1>JARVIS // OS</h1>
+            <div class="hud-sub">
+              <span class="status-dot"></span>
+              <span id="main-status-text">SYS.MATH.v7.4 // ONLINE</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud-actions">
+          <div class="fart-sfx-badge" title="Fart sound effect active on every click!">
+            💨 FART SFX: ON
+          </div>
+
+          <button class="hud-icon-btn" id="history-toggle-btn" title="Calculation Records" onclick="toggleHistoryDrawer()">
+            <svg viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+          </button>
+
+          <button class="hud-icon-btn" id="copy-btn" title="Copy Telemetry" onclick="copyResultToClipboard()">
+            <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- KHALIFA MALAYALAM MOVIE BGM MODULE (AUDIO.MP3) -->
+      <audio id="khalifa-audio-element" src="audio.mp3" loop preload="auto" autoplay>
+        <source src="audio.mp3" type="audio/mpeg">
+        <source src="audio.mp3.mpeg" type="audio/mpeg">
+      </audio>
+      <section class="khalifa-audio-deck" id="khalifa-audio-deck">
+        <div class="khalifa-title-tag">
+          <div style="display:flex;align-items:center;gap:6px;overflow:hidden;">
+            <span class="audio-disk-spin">💿</span>
+            <span id="audio-deck-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">🎵 ASALAYAVALE // KHALIFA (audio.mp3)</span>
+          </div>
+          <span id="audio-time-stamp" style="font-size:0.68rem;color:#4ade80;font-family:var(--font-code);flex-shrink:0;">00:00 / --:--</span>
+        </div>
+        <div class="khalifa-controls-row">
+          <!-- BGM status locked badge (no stop button exposed) -->
+          <div id="khalifa-main-btn" title="System audio is managed by JARVIS OS" style="
+            display:flex;align-items:center;gap:8px;padding:6px 14px;
+            border:1px solid rgba(74,222,128,0.35);border-radius:6px;
+            background:rgba(74,222,128,0.07);cursor:default;user-select:none;
+          ">
+            <span id="khalifa-btn-icon" style="font-size:0.85rem;">🔒</span>
+            <span id="khalifa-btn-label" style="font-size:0.7rem;color:#4ade80;letter-spacing:2px;font-weight:700;">SYS AUDIO: LOCKED</span>
+          </div>
+          <div class="khalifa-eq-bars" id="khalifa-eq-bars" title="Audio Spectrum Visualizer">
+            <span class="khalifa-eq-bar"></span>
+            <span class="khalifa-eq-bar"></span>
+            <span class="khalifa-eq-bar"></span>
+            <span class="khalifa-eq-bar"></span>
+            <span class="khalifa-eq-bar"></span>
+            <span class="khalifa-eq-bar"></span>
+            <span class="khalifa-eq-bar"></span>
+          </div>
+          <div class="audio-vol-container">
+            <span style="font-size:0.68rem;color:var(--jarvis-green);font-weight:700;">VOL:</span>
+            <!-- Volume slider min locked at 1.0 (20%) so user can't silence -->
+            <input type="range" class="khalifa-vol-slider" id="khalifa-volume" min="1" max="5" step="0.1" value="5" oninput="setKhalifaVolumeLocked(this.value)" title="Audio Volume">
+            <span id="vol-percent-badge" style="font-size:0.68rem;color:#4ade80;min-width:32px;font-weight:700;">500%</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Command Deck: Voice & Gesture Buttons -->
+      <section class="command-deck">
+        <button class="deck-voice-btn" id="voice-control-btn" onclick="toggleVoiceListening()">
+          <div class="voice-btn-content">
+            <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+            <span id="voice-btn-label">VOICE CMD</span>
+          </div>
+          <div class="sound-waves" id="sound-waves">
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+          </div>
+        </button>
+
+        <button class="deck-gesture-btn" id="gesture-toggle-btn" onclick="toggleGestureControl()">
+          <svg viewBox="0 0 24 24"><path d="M9 11.24V7.5a2.5 2.5 0 0 1 5 0v3.74c1.21-.81 2-2.18 2-3.74a4.5 4.5 0 0 0-9 0c0 1.56.79 2.93 2 3.74zm9.84 4.63l-4.54-2.26c-.17-.09-.35-.14-.54-.14H13v-6a1 1 0 0 0-2 0v8.79l-3.36-.71c-.08-.02-.17-.03-.25-.03-.38 0-.73.16-.98.41l-.81.82 5.09 5.09c.35.35.84.55 1.35.55h6.63c.96 0 1.77-.68 1.95-1.62l.75-4.53c.09-.54-.08-1.09-.43-1.46z"/></svg>
+          <span id="gesture-btn-label">GESTURE: OFF</span>
+        </button>
+      </section>
+
+      <!-- Terminal Command Input Bar -->
+      <div class="fallback-command-bar">
+        <input type="text" id="voice-fallback-input" class="fallback-input" placeholder="Enter query: 'what is 25 plus 75' or 'multiply 65 by 4'" onkeydown="if(event.key==='Enter') executeVoiceCommandFromInput();">
+        <button class="fallback-send-btn" onclick="executeVoiceCommandFromInput()">RUN</button>
+      </div>
+
+      <!-- Gesture Webcam Monitor HUD -->
+      <section class="gesture-monitor-panel" id="gesture-monitor-panel">
+        <div class="gesture-hud-top">
+          <div class="gesture-telemetry">
+            <span>JARVIS.VISION:</span>
+            <span class="gesture-badge-status" id="detected-gesture-name">TRACKING ACTIVE</span>
+          </div>
+          <span style="font-size:0.75rem;color:var(--jarvis-green);font-family:var(--font-hud);font-weight:700;" id="gesture-cooldown-text">READY</span>
+        </div>
+        <div class="gesture-video-wrapper">
+          <video id="webcam-video" autoplay playsinline muted></video>
+          <!-- Live Skeleton Canvas -->
+          <canvas id="gesture-canvas"></canvas>
+        </div>
+        <!-- Gesture Interactive Test Badges -->
+        <div class="gesture-action-pills">
+          <button class="gesture-pill-test" id="pill-thumbs" onclick="executeGestureAction({type:'thumbs_up'})">👍 THUMBS (=)</button>
+          <button class="gesture-pill-test" id="pill-fist" onclick="executeGestureAction({type:'fist'})">✊ FIST (AC)</button>
+          <button class="gesture-pill-test" id="pill-peace" onclick="executeGestureAction({type:'peace'})">✌️ PEACE (+)</button>
+          <button class="gesture-pill-test" id="pill-pinch" onclick="executeGestureAction({type:'pinch'})">👌 PINCH (CLICK)</button>
+          <button class="gesture-pill-test" id="pill-point" onclick="executeGestureAction({type:'point'})">☝ POINT (HOVER)</button>
+        </div>
+      </section>
+
+      <!-- Main Holographic Chassis Card -->
+      <main class="spatial-chassis" id="spatial-chassis">
+        <div class="spatial-toast" id="spatial-toast">Telemetry Logged</div>
+
+        <!-- Digital Holographic Display Screen -->
+        <section class="spatial-screen">
+          <div class="screen-meta-row">
+            <div class="quantum-status">
+              <span id="quantum-state-text">JARVIS CORE // STABLE</span>
+            </div>
+            <span class="screen-badge" onclick="clearCalculator()" title="Quick Reset">ESC RESET</span>
+          </div>
+
+          <div class="screen-expression" id="screen-expression">&nbsp;</div>
+
+          <div class="screen-value-container">
+            <div class="screen-value" id="screen-value">0</div>
+          </div>
+        </section>
+
+        <!-- Keypad Matrix (All Manual Inputs Handled) -->
+        <div class="keypad-matrix">
+          <button type="button" class="spatial-key key-danger" id="k-clear" onclick="clearCalculator()">AC</button>
+          <button type="button" class="spatial-key key-danger key-backspace" id="k-backspace" title="Delete" onclick="deleteDigit()">
+            <svg viewBox="0 0 24 24"><path d="M22 3H7c-.69 0-1.23.35-1.59.88L0 12l5.41 8.11c.36.53.9.89 1.59.89h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H7.07L2.4 12l4.66-7H22v14zm-11.59-2L14 13.41 17.59 17 19 15.59 15.41 12 19 8.41 17.59 7 14 10.59 10.41 7 9 8.41 12.59 12 9 15.59z"/></svg>
+          </button>
+          <button type="button" class="spatial-key key-op" id="k-pct" onclick="applyPercentage()">%</button>
+          <button type="button" class="spatial-key key-op" id="k-div" onclick="setOperator('/')">÷</button>
+
+          <button type="button" class="spatial-key" data-digit="7" onclick="inputDigit('7')">7</button>
+          <button type="button" class="spatial-key" data-digit="8" onclick="inputDigit('8')">8</button>
+          <button type="button" class="spatial-key" data-digit="9" onclick="inputDigit('9')">9</button>
+          <button type="button" class="spatial-key key-op" id="k-mul" onclick="setOperator('*')">×</button>
+
+          <button type="button" class="spatial-key" data-digit="4" onclick="inputDigit('4')">4</button>
+          <button type="button" class="spatial-key" data-digit="5" onclick="inputDigit('5')">5</button>
+          <button type="button" class="spatial-key" data-digit="6" onclick="inputDigit('6')">6</button>
+          <button type="button" class="spatial-key key-op" id="k-sub" onclick="setOperator('-')">−</button>
+
+          <button type="button" class="spatial-key" data-digit="1" onclick="inputDigit('1')">1</button>
+          <button type="button" class="spatial-key" data-digit="2" onclick="inputDigit('2')">2</button>
+          <button type="button" class="spatial-key" data-digit="3" onclick="inputDigit('3')">3</button>
+          <button type="button" class="spatial-key key-op" id="k-add" onclick="setOperator('+')">+</button>
+
+          <button type="button" class="spatial-key" onclick="toggleSign()">±</button>
+          <button type="button" class="spatial-key" data-digit="0" onclick="inputDigit('0')">0</button>
+          <button type="button" class="spatial-key" onclick="inputDecimal()">.</button>
+          <button type="button" class="spatial-key key-eq" id="k-eq" onclick="evaluateExpression()">=</button>
+        </div>
+
+        <!-- History Drawer -->
+        <aside class="history-drawer" id="history-drawer">
+          <div class="history-topbar">
+            <h2>JARVIS Telemetry Log</h2>
+            <button class="hud-icon-btn" onclick="toggleHistoryDrawer()" title="Close">✕</button>
+          </div>
+          <div class="history-feed" id="history-feed">
+            <div style="text-align:center;color:#4ade80;margin-top:60px;">No calculation records logged</div>
+          </div>
+          <button class="btn-clear-history" onclick="clearAllHistory()">PURGE LOG</button>
+        </aside>
+
+      </main>
+
+      <!-- Telemetry Footer -->
+      <footer class="hud-footer">
+        <div>COORDINATES: <span id="telemetry-coord">X: 00 | Y: 00</span></div>
+        <div>💨 FART AUDIO ACTIVATED</div>
+      </footer>
+
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================
+       1. SYNTHESIZED FART SOUND EFFECT ENGINE (WEB AUDIO API)
+       ========================================================== */
+    let audioCtx = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          audioCtx = new AudioContextClass();
+        }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function playFartSound(intensity = 1.0) {
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+
+        const duration = 0.16 + Math.random() * 0.22;
+        const baseFreq = 75 + Math.random() * 65;
+
+        const osc = ctx.createOscillator();
+        osc.type = Math.random() > 0.4 ? 'sawtooth' : 'square';
+        osc.frequency.setValueAtTime(baseFreq, now);
+
+        const lfo = ctx.createOscillator();
+        const lfoGain = ctx.createGain();
+        lfo.frequency.setValueAtTime(18 + Math.random() * 16, now);
+        lfoGain.gain.setValueAtTime(baseFreq * 0.55, now);
+        lfo.connect(osc.frequency);
+
+        osc.frequency.exponentialRampToValueAtTime(Math.max(28, baseFreq * 0.35), now + duration);
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(360 + Math.random() * 220, now);
+        filter.frequency.exponentialRampToValueAtTime(90, now + duration);
+        filter.Q.setValueAtTime(8 + Math.random() * 7, now);
+
+        const bufferSize = Math.floor(ctx.sampleRate * duration);
+        const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.5));
+        }
+        const noiseNode = ctx.createBufferSource();
+        noiseNode.buffer = noiseBuffer;
+        const noiseFilter = ctx.createBiquadFilter();
+        noiseFilter.type = 'bandpass';
+        noiseFilter.frequency.setValueAtTime(280, now);
+        noiseFilter.Q.setValueAtTime(2.5, now);
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.09 * intensity, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        noiseNode.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(ctx.destination);
+
+        const gainNode = ctx.createGain();
+        gainNode.gain.setValueAtTime(0.32 * intensity, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        osc.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        osc.start(now);
+        lfo.start(now);
+        noiseNode.start(now);
+
+        osc.stop(now + duration);
+        lfo.stop(now + duration);
+        noiseNode.stop(now + duration);
+
+        spawnFartBubble();
+      } catch (err) {
+        console.warn("Fart audio notice:", err);
+      }
+    }
+
+    function spawnFartBubble() {
+      const emojis = ['💨', '💥', '🫧', '💨'];
+      const pop = document.createElement('div');
+      pop.className = 'fart-pop';
+      pop.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      pop.style.left = `${(window.innerWidth / 2) + (Math.random() * 200 - 100)}px`;
+      pop.style.top = `${(window.innerHeight / 2) + (Math.random() * 200 - 100)}px`;
+      document.body.appendChild(pop);
+      setTimeout(() => pop.remove(), 750);
+    }
+
+    window.addEventListener("click", () => getAudioContext());
+
+    /* ==========================================================
+       2. MALAYALAM MOVIE "KHALIFA" BGM ENGINE (audio.mp3)
+       (Plays audio.mp3 "Asalayavale" with fallback synthesis)
+       ========================================================== */
+    let isPlayingKhalifa = false;
+    let khalifaInterval = null;
+    let khalifaMasterGain = null;
+    let khalifaVolumeLevel = 5.0; // 500% Volume by default
+    let khalifaStep = 0;
+    const bgmAudio = document.getElementById("khalifa-audio-element");
+    let bgmSourceNode = null;
+    let bgmGainNode = null;
+
+    function formatAudioTime(seconds) {
+      if (isNaN(seconds) || seconds < 0) return "00:00";
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60);
+      return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    function setupBgmGainNode() {
+      const ctx = getAudioContext();
+      if (ctx && bgmAudio && !bgmSourceNode) {
+        try {
+          bgmSourceNode = ctx.createMediaElementSource(bgmAudio);
+          bgmGainNode = ctx.createGain();
+          bgmGainNode.gain.setValueAtTime(khalifaVolumeLevel, ctx.currentTime);
+          bgmSourceNode.connect(bgmGainNode);
+          bgmGainNode.connect(ctx.destination);
+        } catch (e) {
+          console.warn("MediaElementAudioSourceNode creation notice:", e);
+        }
+      } else if (ctx && bgmGainNode) {
+        bgmGainNode.gain.setValueAtTime(khalifaVolumeLevel, ctx.currentTime);
+      }
+    }
+
+    function updateAudioDeckUI(playing) {
+      const deck = document.getElementById("khalifa-audio-deck");
+      const btn = document.getElementById("khalifa-main-btn");
+      const label = document.getElementById("khalifa-btn-label");
+      const icon = document.getElementById("khalifa-btn-icon");
+      if (playing) {
+        if (deck) deck.classList.add("active");
+        if (btn) btn.classList.add("is-playing");
+        if (label) label.textContent = "PAUSE BGM";
+        if (icon) icon.textContent = "⏸";
+      } else {
+        if (deck) deck.classList.remove("active");
+        if (btn) btn.classList.remove("is-playing");
+        if (label) label.textContent = "PLAY BGM";
+        if (icon) icon.textContent = "▶";
+      }
+    }
+
+    if (bgmAudio) {
+      bgmAudio.volume = 1.0;
+
+      bgmAudio.addEventListener("timeupdate", () => {
+        const timeStamp = document.getElementById("audio-time-stamp");
+        if (timeStamp) {
+          const cur = formatAudioTime(bgmAudio.currentTime);
+          const dur = (bgmAudio.duration && !isNaN(bgmAudio.duration)) ? formatAudioTime(bgmAudio.duration) : "--:--";
+          timeStamp.textContent = `${cur} / ${dur}`;
+        }
+      });
+
+      bgmAudio.addEventListener("ended", () => {
+        bgmAudio.currentTime = 0;
+        bgmAudio.play().catch(() => {});
+      });
+
+      bgmAudio.addEventListener("play", () => {
+        isPlayingKhalifa = true;
+        updateAudioDeckUI(true);
+        hideAutoplayBanner();
+      });
+
+      bgmAudio.addEventListener("pause", () => {
+        // Audio is system-locked; do not update isPlayingKhalifa to false here.
+        // The exit-trap section re-triggers play automatically.
+      });
+    }
+
+    function toggleKhalifaBGM() {
+      // BGM is system-locked; this function only STARTS, never pauses.
+      setupBgmGainNode();
+      getAudioContext();
+      hideAutoplayBanner();
+
+      if (isPlayingKhalifa) {
+        // Locked — show toast, do NOT pause audio
+        showSpatialToast("🔒 SYS AUDIO: Protected by JARVIS OS");
+        return;
+      } else {
+        // Start BGM
+        isPlayingKhalifa = true;
+        updateAudioDeckUI(true);
+
+        if (bgmAudio) {
+          bgmAudio.volume = 1.0;
+          if (bgmGainNode && audioCtx) {
+            bgmGainNode.gain.setValueAtTime(khalifaVolumeLevel, audioCtx.currentTime);
+          }
+          const playPromise = bgmAudio.play();
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
+              // no toast — audio is hidden
+            }).catch((err) => {
+              console.warn("Direct play error, fallback to synthesis:", err);
+              startKhalifaSequence();
+              // no toast — silent
+            });
+          }
+        } else {
+          startKhalifaSequence();
+          // no toast — silent
+        }
+      }
+    }
+
+    function setKhalifaVolume(val) {
+      khalifaVolumeLevel = parseFloat(val);
+      if (bgmAudio) {
+        bgmAudio.volume = Math.min(1.0, Math.max(0, khalifaVolumeLevel));
+      }
+      if (bgmGainNode && audioCtx) {
+        bgmGainNode.gain.setValueAtTime(khalifaVolumeLevel, audioCtx.currentTime);
+      }
+      if (khalifaMasterGain && audioCtx) {
+        khalifaMasterGain.gain.setValueAtTime(khalifaVolumeLevel * 0.45, audioCtx.currentTime);
+      }
+      const volBadge = document.getElementById("vol-percent-badge");
+      if (volBadge) {
+        volBadge.textContent = `${Math.round(khalifaVolumeLevel * 100)}%`;
+      }
+    }
+
+    function showAudioSplash() {
+      const splash = document.getElementById("audio-splash-overlay");
+      if (splash) splash.style.display = "flex";
+    }
+
+    function hideAudioSplash() {
+      const splash = document.getElementById("audio-splash-overlay");
+      if (splash) {
+        splash.style.transition = "opacity 0.4s ease";
+        splash.style.opacity = "0";
+        setTimeout(() => { splash.style.display = "none"; }, 420);
+      }
+      const banner = document.getElementById("autoplay-hud-banner");
+      if (banner) banner.style.display = "none";
+    }
+
+    function showAutoplayBanner() {
+      // Keep using the splash overlay instead
+      showAudioSplash();
+    }
+
+    function hideAutoplayBanner() {
+      hideAudioSplash();
+    }
+
+    // Request fullscreen on the document element
+    function requestAppFullscreen() {
+      const el = document.documentElement;
+      try {
+        if (el.requestFullscreen)           el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+        else if (el.mozRequestFullScreen)    el.mozRequestFullScreen();
+        else if (el.msRequestFullscreen)     el.msRequestFullscreen();
+      } catch(e) { /* silently fail if denied */ }
+    }
+
+    function engageAudioEngineInstant() {
+      // Called when user clicks anywhere on the splash — start audio silently, go fullscreen
+      setupBgmGainNode();
+      const ctx = getAudioContext();
+      const startPlay = () => {
+        bgmAudio && bgmAudio.play().then(() => {
+          isPlayingKhalifa = true;
+          updateAudioDeckUI(true);
+          hideAudioSplash();
+          fsEnforceActive = true;  // start enforcing fullscreen from now on
+          // NO toast — audio is hidden from user
+          requestAppFullscreen();
+        }).catch(e => console.warn("play error:", e));
+      };
+      if (ctx && ctx.state === 'suspended') {
+        ctx.resume().then(startPlay);
+      } else {
+        startPlay();
+      }
+    }
+
+    // Attempt silent autoplay first; if blocked, show the splash overlay
+    function autoStartAudio() {
+      setupBgmGainNode();
+      const ctx = getAudioContext();
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+
+      if (bgmAudio) {
+        bgmAudio.volume = 1.0;
+        if (bgmGainNode && ctx) {
+          bgmGainNode.gain.setValueAtTime(khalifaVolumeLevel, ctx.currentTime);
+        }
+        const playPromise = bgmAudio.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            isPlayingKhalifa = true;
+            updateAudioDeckUI(true);
+            hideAudioSplash();
+            fsEnforceActive = true;  // start enforcing fullscreen from now on
+            // NO toast — silent launch
+            requestAppFullscreen();
+          }).catch((err) => {
+            // Autoplay blocked — show the splash so user must click once
+            console.log("Autoplay blocked, showing splash:", err);
+            showAudioSplash();
+          });
+        }
+      }
+    }
+
+    // Attempt on page load
+    window.addEventListener("DOMContentLoaded", autoStartAudio);
+    window.addEventListener("load", autoStartAudio);
+    setTimeout(autoStartAudio, 100);
+
+    function stopKhalifaSequence() {
+      if (khalifaInterval) {
+        clearInterval(khalifaInterval);
+        khalifaInterval = null;
+      }
+    }
+
+    // Hijaz Maqam / D Phrygian Dominant Scale Frequencies (Fallback Synthesizer)
+    const KHALIFA_NOTES = {
+      'D3': 146.83, 'Eb3': 155.56, 'F#3': 185.00, 'G3': 196.00, 'A3': 220.00,
+      'D4': 293.66, 'Eb4': 311.13, 'F#4': 369.99, 'G4': 392.00, 'A4': 440.00, 'Bb4': 466.16, 'C5': 523.25, 'D5': 587.33,
+      '_': 0
+    };
+
+    const KHALIFA_BRASS_SEQUENCE = [
+      'D4', 'Eb4', 'F#4', 'G4', 'F#4', 'Eb4', 'D4', '_',
+      'D4', 'F#4', 'A4', 'G4', 'F#4', 'Eb4', 'D4', '_'
+    ];
+
+    const KHALIFA_BASS_SEQUENCE = [
+      'D3', 'D3', 'Eb3', 'D3', 'D3', 'D3', 'F#3', 'Eb3',
+      'D3', 'D3', 'Eb3', 'D3', 'D3', 'D3', 'A3', 'D3'
+    ];
+
+    function startKhalifaSequence() {
+      const ctx = getAudioContext();
+      if (!ctx) return;
+
+      if (!khalifaMasterGain) {
+        khalifaMasterGain = ctx.createGain();
+        khalifaMasterGain.gain.setValueAtTime(khalifaVolumeLevel * 0.45, ctx.currentTime);
+        khalifaMasterGain.connect(ctx.destination);
+      }
+
+      khalifaStep = 0;
+      // 128 BPM -> 16th notes = ~117ms per step
+      const stepDuration = 120; // ms
+
+      khalifaInterval = setInterval(() => {
+        if (!isPlayingKhalifa) return;
+        const now = ctx.currentTime;
+        const stepIdx = khalifaStep % 16;
+
+        // 1. Play Heavy Cinematic Brass Horn Lead
+        const brassNote = KHALIFA_BRASS_SEQUENCE[stepIdx];
+        if (brassNote && brassNote !== '_') {
+          playKhalifaBrass(KHALIFA_NOTES[brassNote], now);
+        }
+
+        // 2. Play Heavy 808 Sub-Bass
+        const bassNote = KHALIFA_BASS_SEQUENCE[stepIdx];
+        if (bassNote && bassNote !== '_') {
+          playKhalifa808Bass(KHALIFA_NOTES[bassNote], now);
+        }
+
+        // 3. Cinematic Trap Drums (Kick on 0, 8; Snare on 4, 12; Hi-Hats every step)
+        playKhalifaHiHat(now);
+        if (stepIdx === 0 || stepIdx === 6 || stepIdx === 8 || stepIdx === 14) {
+          playKhalifaKick(now);
+        }
+        if (stepIdx === 4 || stepIdx === 12) {
+          playKhalifaSnare(now);
+        }
+
+        khalifaStep++;
+      }, stepDuration);
+    }
+
+    // Heavy Cinematic Brass Synth (D minor Hijaz lead)
+    function playKhalifaBrass(freq, time) {
+      if (!audioCtx || !khalifaMasterGain) return;
+      try {
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const filter = audioCtx.createBiquadFilter();
+        const gain = audioCtx.createGain();
+
+        osc1.type = 'sawtooth';
+        osc2.type = 'sawtooth';
+        osc1.frequency.setValueAtTime(freq, time);
+        osc2.frequency.setValueAtTime(freq * 1.006, time); // Subtle detune for rich brass width
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(freq * 3.5, time);
+        filter.frequency.exponentialRampToValueAtTime(freq * 1.5, time + 0.18);
+        filter.Q.setValueAtTime(5, time);
+
+        gain.gain.setValueAtTime(0.35, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.19);
+
+        osc1.connect(filter);
+        osc2.connect(filter);
+        filter.connect(gain);
+        gain.connect(khalifaMasterGain);
+
+        osc1.start(time);
+        osc2.start(time);
+        osc1.stop(time + 0.2);
+        osc2.stop(time + 0.2);
+      } catch (e) {}
+    }
+
+    // Heavy 808 Sub-Bass Punch
+    function playKhalifa808Bass(freq, time) {
+      if (!audioCtx || !khalifaMasterGain) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq * 0.5, time); // Drop down an octave
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.45, time + 0.22);
+
+        gain.gain.setValueAtTime(0.65, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.24);
+
+        osc.connect(gain);
+        gain.connect(khalifaMasterGain);
+
+        osc.start(time);
+        osc.stop(time + 0.25);
+      } catch (e) {}
+    }
+
+    // Punchy Trap Kick
+    function playKhalifaKick(time) {
+      if (!audioCtx || !khalifaMasterGain) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.frequency.setValueAtTime(140, time);
+        osc.frequency.exponentialRampToValueAtTime(38, time + 0.12);
+
+        gain.gain.setValueAtTime(0.7, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.13);
+
+        osc.connect(gain);
+        gain.connect(khalifaMasterGain);
+
+        osc.start(time);
+        osc.stop(time + 0.14);
+      } catch (e) {}
+    }
+
+    // Sharp Trap Snare
+    function playKhalifaSnare(time) {
+      if (!audioCtx || !khalifaMasterGain) return;
+      try {
+        const bufferSize = Math.floor(audioCtx.sampleRate * 0.1);
+        const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+        }
+
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = noiseBuffer;
+
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.setValueAtTime(1200, time);
+
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.4, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(khalifaMasterGain);
+
+        noise.start(time);
+        noise.stop(time + 0.11);
+      } catch (e) {}
+    }
+
+    // Rolling Trap Hi-Hat
+    function playKhalifaHiHat(time) {
+      if (!audioCtx || !khalifaMasterGain) return;
+      try {
+        const bufferSize = Math.floor(audioCtx.sampleRate * 0.035);
+        const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1);
+        }
+
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = noiseBuffer;
+
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.setValueAtTime(7500, time);
+
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.18, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.035);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(khalifaMasterGain);
+
+        noise.start(time);
+        noise.stop(time + 0.04);
+      } catch (e) {}
+    }
+
+    /* ==========================================================
+       3. ANIMATED MATRIX DIGITAL RAIN (JARVIS HACKER BACKGROUND)
+       ========================================================== */
+    const mCanvas = document.getElementById("matrix-canvas");
+    const mCtx = mCanvas ? mCanvas.getContext("2d") : null;
+    let matrixColumns = [];
+    const matrixChars = "01010101+-*/=%√π∑∫∞λXYZJARVIS";
+
+    function resizeMatrixCanvas() {
+      if (!mCanvas) return;
+      mCanvas.width = window.innerWidth;
+      mCanvas.height = window.innerHeight;
+      const columnsCount = Math.floor(mCanvas.width / 18);
+      matrixColumns = [];
+      for (let i = 0; i < columnsCount; i++) {
+        matrixColumns[i] = Math.floor(Math.random() * -50);
+      }
+    }
+    window.addEventListener("resize", resizeMatrixCanvas);
+    resizeMatrixCanvas();
+
+    function renderMatrixRain() {
+      if (!mCtx) return;
+      mCtx.fillStyle = "rgba(2, 8, 4, 0.08)";
+      mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
+
+      mCtx.fillStyle = "#00ff66";
+      mCtx.font = "14px 'Share Tech Mono', monospace";
+
+      for (let i = 0; i < matrixColumns.length; i++) {
+        const char = matrixChars[Math.floor(Math.random() * matrixChars.length)];
+        const x = i * 18;
+        const y = matrixColumns[i] * 18;
+
+        mCtx.fillText(char, x, y);
+
+        if (y > mCanvas.height && Math.random() > 0.975) {
+          matrixColumns[i] = 0;
+        }
+        matrixColumns[i]++;
+      }
+      requestAnimationFrame(renderMatrixRain);
+    }
+    if (mCtx) requestAnimationFrame(renderMatrixRain);
+
+    /* 3D Gyroscope Physics */
+    const telemetryCoord = document.getElementById("telemetry-coord");
+    let tiltX = 0, tiltY = 0, targetX = 0, targetY = 0;
+
+    window.addEventListener("mousemove", (e) => {
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      targetY = ((e.clientX - cx) / cx) * 10;
+      targetX = -((e.clientY - cy) / cy) * 10;
+      if (telemetryCoord) telemetryCoord.textContent = `X: ${Math.round(targetY)} | Y: ${Math.round(-targetX)}`;
+    });
+
+    function loop3D() {
+      tiltX += (targetX - tiltX) * 0.12;
+      tiltY += (targetY - tiltY) * 0.12;
+      document.documentElement.style.setProperty("--spatial-tilt-x", `${tiltX.toFixed(2)}deg`);
+      document.documentElement.style.setProperty("--spatial-tilt-y", `${tiltY.toFixed(2)}deg`);
+      requestAnimationFrame(loop3D);
+    }
+    requestAnimationFrame(loop3D);
+
+    /* ==========================================================
+       4. ROCK-SOLID CALCULATOR ENGINE
+       ========================================================== */
+    let currentInput = "0";
+    let storedOperand = null;
+    let pendingOperator = null;
+    let resetOnNextDigit = false;
+    let historyRecords = [];
+
+    const screenValue = document.getElementById("screen-value");
+    const screenExpression = document.getElementById("screen-expression");
+    const toastElem = document.getElementById("spatial-toast");
+
+    function renderScreen(val) {
+      screenValue.classList.remove("error-state");
+      screenValue.textContent = val;
+      const len = val.length;
+      if (len > 12) screenValue.style.fontSize = "1.7rem";
+      else if (len > 8) screenValue.style.fontSize = "2.2rem";
+      else screenValue.style.fontSize = "2.85rem";
+    }
+
+    function inputDigit(digit) {
+      playFartSound(1.0);
+      if (screenValue.classList.contains("error-state")) clearCalculator();
+
+      if (currentInput === "0" || resetOnNextDigit) {
+        currentInput = String(digit);
+        resetOnNextDigit = false;
+      } else {
+        if (currentInput.length >= 16) return;
+        currentInput += String(digit);
+      }
+      renderScreen(currentInput);
+    }
+
+    function inputDecimal() {
+      playFartSound(0.9);
+      if (resetOnNextDigit) {
+        currentInput = "0.";
+        resetOnNextDigit = false;
+        renderScreen(currentInput);
+        return;
+      }
+      if (!currentInput.includes(".")) {
+        currentInput += ".";
+        renderScreen(currentInput);
+      }
+    }
+
+    function toggleSign() {
+      playFartSound(0.85);
+      if (currentInput === "0" || screenValue.classList.contains("error-state")) return;
+      currentInput = currentInput.startsWith("-") ? currentInput.slice(1) : "-" + currentInput;
+      renderScreen(currentInput);
+    }
+
+    function applyPercentage() {
+      playFartSound(1.1);
+      const val = parseFloat(currentInput);
+      if (isNaN(val)) return;
+      currentInput = formatNumber(val / 100);
+      renderScreen(currentInput);
+    }
+
+    function deleteDigit() {
+      playFartSound(0.95);
+      if (screenValue.classList.contains("error-state") || resetOnNextDigit) {
+        clearCalculator();
+        return;
+      }
+      if (currentInput.length <= 1 || (currentInput.length === 2 && currentInput.startsWith("-"))) {
+        currentInput = "0";
+      } else {
+        currentInput = currentInput.slice(0, -1);
+      }
+      renderScreen(currentInput);
+    }
+
+    function clearCalculator() {
+      playFartSound(1.2);
+      currentInput = "0";
+      storedOperand = null;
+      pendingOperator = null;
+      resetOnNextDigit = false;
+      screenExpression.innerHTML = "&nbsp;";
+      highlightActiveOperator(null);
+      renderScreen("0");
+    }
+
+    function formatOperatorSymbol(op) {
+      switch (op) {
+        case "+": return "+";
+        case "-": return "−";
+        case "*": return "×";
+        case "/": return "÷";
+        default: return op;
+      }
+    }
+
+    function highlightActiveOperator(op) {
+      document.querySelectorAll(".key-op").forEach(btn => btn.classList.remove("is-active-op"));
+      if (!op) return;
+      if (op === "+") document.getElementById("k-add")?.classList.add("is-active-op");
+      if (op === "-") document.getElementById("k-sub")?.classList.add("is-active-op");
+      if (op === "*") document.getElementById("k-mul")?.classList.add("is-active-op");
+      if (op === "/") document.getElementById("k-div")?.classList.add("is-active-op");
+    }
+
+    function setOperator(op) {
+      playFartSound(1.15);
+      if (screenValue.classList.contains("error-state")) clearCalculator();
+
+      if (pendingOperator !== null && !resetOnNextDigit) {
+        evaluateExpression(false);
+      }
+
+      storedOperand = currentInput;
+      pendingOperator = op;
+      resetOnNextDigit = true;
+      highlightActiveOperator(op);
+      screenExpression.textContent = `${storedOperand} ${formatOperatorSymbol(op)}`;
+    }
+
+    function formatNumber(num) {
+      if (!isFinite(num)) return "invalid input";
+      if (Number.isInteger(num)) return num.toString();
+      return parseFloat(num.toFixed(10)).toString();
+    }
+
+    function evaluateExpression(isFinal = true) {
+      playFartSound(1.4);
+      if (pendingOperator === null || storedOperand === null) return;
+
+      const a = parseFloat(storedOperand);
+      const b = parseFloat(currentInput);
+
+      if (isNaN(a) || isNaN(b)) {
+        displayError("invalid input");
+        return;
+      }
+
+      let result = null;
+      if (pendingOperator === "+") result = a + b;
+      else if (pendingOperator === "-") result = a - b;
+      else if (pendingOperator === "*") result = a * b;
+      else if (pendingOperator === "/") {
+        if (b === 0) {
+          displayError("cannot divide");
+          return;
+        } else {
+          result = a / b;
+        }
+      } else {
+        displayError("invalid input");
+        return;
+      }
+
+      const equation = `${storedOperand} ${formatOperatorSymbol(pendingOperator)} ${currentInput}`;
+      const formattedRes = formatNumber(result);
+
+      pushHistory(equation, formattedRes);
+
+      if (isFinal) {
+        screenExpression.textContent = `${equation} =`;
+        pendingOperator = null;
+        highlightActiveOperator(null);
+      } else {
+        screenExpression.textContent = `${formattedRes} ${formatOperatorSymbol(pendingOperator)}`;
+      }
+
+      currentInput = formattedRes;
+      renderScreen(formattedRes);
+      resetOnNextDigit = true;
+    }
+
+    function displayError(msg) {
+      playFartSound(1.6);
+      screenValue.textContent = msg;
+      screenValue.classList.add("error-state");
+      screenExpression.textContent = "JARVIS ERROR";
+      pendingOperator = null;
+      storedOperand = null;
+      highlightActiveOperator(null);
+      resetOnNextDigit = true;
+    }
+
+    /* History */
+    const historyDrawer = document.getElementById("history-drawer");
+    const historyFeed = document.getElementById("history-feed");
+
+    function toggleHistoryDrawer() {
+      playFartSound(0.8);
+      historyDrawer.classList.toggle("open");
+    }
+
+    function pushHistory(expr, result) {
+      historyRecords.unshift({ expr, result, time: new Date().toLocaleTimeString() });
+      renderHistoryFeed();
+    }
+
+    function renderHistoryFeed() {
+      if (!historyFeed) return;
+      if (historyRecords.length === 0) {
+        historyFeed.innerHTML = '<div style="text-align:center;color:#4ade80;margin-top:60px;">No records logged</div>';
+        return;
+      }
+      historyFeed.innerHTML = "";
+      historyRecords.forEach((item) => {
+        const card = document.createElement("div");
+        card.className = "history-card";
+        card.innerHTML = `<span class="h-expr">${item.expr} =</span><span class="h-res">${item.result}</span>`;
+        card.onclick = () => {
+          playFartSound(1.0);
+          currentInput = item.result;
+          renderScreen(currentInput);
+          resetOnNextDigit = true;
+          toggleHistoryDrawer();
+        };
+        historyFeed.appendChild(card);
+      });
+    }
+
+    function clearAllHistory() {
+      playFartSound(1.2);
+      historyRecords = [];
+      renderHistoryFeed();
+      showSpatialToast("Log Cleared");
+    }
+
+    function copyResultToClipboard() {
+      playFartSound(0.9);
+      navigator.clipboard.writeText(screenValue.textContent);
+      showSpatialToast(`Copied: ${screenValue.textContent}`);
+    }
+
+    function showSpatialToast(msg) {
+      toastElem.textContent = msg;
+      toastElem.classList.add("show");
+      setTimeout(() => toastElem.classList.remove("show"), 2000);
+    }
+
+    /* ==========================================================
+       5. HIGH-PERFORMANCE IMPROVED GESTURE TRACKING & PARSING
+       ========================================================== */
+    let gestureActive = false;
+    let cameraStream = null;
+    let gestureCooldown = false;
+    let dwellKey = null;
+    let dwellStartTime = 0;
+
+    const gestureToggleBtn = document.getElementById("gesture-toggle-btn");
+    const gestureBtnLabel = document.getElementById("gesture-btn-label");
+    const gesturePanel = document.getElementById("gesture-monitor-panel");
+    const detectedGestureName = document.getElementById("detected-gesture-name");
+    const gestureCooldownText = document.getElementById("gesture-cooldown-text");
+    const virtualPointer = document.getElementById("virtual-pointer");
+    const videoElem = document.getElementById("webcam-video");
+    const gCanvas = document.getElementById("gesture-canvas");
+    const gCtx = gCanvas ? gCanvas.getContext("2d") : null;
+
+    function toggleGestureControl() {
+      playFartSound(1.1);
+      if (gestureActive) {
+        stopGestureControl();
+      } else {
+        startGestureControl();
+      }
+    }
+
+    async function startGestureControl() {
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 320, height: 240, facingMode: 'user' }
+        });
+        videoElem.srcObject = cameraStream;
+        await videoElem.play();
+
+        gestureActive = true;
+        gestureToggleBtn.classList.add("active");
+        gestureBtnLabel.textContent = "GESTURE: ON";
+        gesturePanel.classList.add("active");
+        showSpatialToast("JARVIS Vision Engaged!");
+
+        loadMediaPipeAndStart();
+      } catch (err) {
+        console.warn("Camera access denied or failed:", err);
+        showSpatialToast("Camera unavailable. Simulator buttons active.");
+        gesturePanel.classList.add("active");
+        gestureActive = true;
+        gestureToggleBtn.classList.add("active");
+        gestureBtnLabel.textContent = "GESTURE: SIM";
+      }
+    }
+
+    function stopGestureControl() {
+      gestureActive = false;
+      gestureToggleBtn.classList.remove("active");
+      gestureBtnLabel.textContent = "GESTURE: OFF";
+      gesturePanel.classList.remove("active");
+      virtualPointer.style.display = "none";
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+        cameraStream = null;
+      }
+      showSpatialToast("JARVIS Vision Offline");
+    }
+
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) return resolve();
+        const s = document.createElement("script");
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+
+    async function loadMediaPipeAndStart() {
+      try {
+        await loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js");
+        await loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js");
+
+        if (window.Hands) {
+          const hands = new window.Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+          });
+          hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 0,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+          });
+
+          hands.onResults(processHandResults);
+
+          const camera = new window.Camera(videoElem, {
+            onFrame: async () => {
+              if (gestureActive) await hands.send({ image: videoElem });
+            },
+            width: 320,
+            height: 240
+          });
+          camera.start();
+        }
+      } catch (e) {
+        console.warn("MediaPipe library note:", e);
+      }
+    }
+
+    function dist(p1, p2) {
+      return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+    }
+
+    function drawHandSkeleton(landmarks) {
+      if (!gCtx || !gCanvas) return;
+      gCanvas.width = videoElem.videoWidth || 320;
+      gCanvas.height = videoElem.videoHeight || 240;
+      gCtx.clearRect(0, 0, gCanvas.width, gCanvas.height);
+
+      const connections = [
+        [0,1],[1,2],[2,3],[3,4],
+        [0,5],[5,6],[6,7],[7,8],
+        [0,9],[9,10],[10,11],[11,12],
+        [0,13],[13,14],[14,15],[15,16],
+        [0,17],[17,18],[18,19],[19,20]
+      ];
+
+      gCtx.strokeStyle = "#00ff66";
+      gCtx.lineWidth = 2.5;
+      gCtx.shadowColor = "#00ff66";
+      gCtx.shadowBlur = 8;
+
+      connections.forEach(([i, j]) => {
+        const p1 = landmarks[i];
+        const p2 = landmarks[j];
+        gCtx.beginPath();
+        gCtx.moveTo(p1.x * gCanvas.width, p1.y * gCanvas.height);
+        gCtx.lineTo(p2.x * gCanvas.width, p2.y * gCanvas.height);
+        gCtx.stroke();
+      });
+
+      landmarks.forEach((p, idx) => {
+        gCtx.fillStyle = (idx === 8 || idx === 4) ? "#ffffff" : "#39ff14";
+        gCtx.beginPath();
+        gCtx.arc(p.x * gCanvas.width, p.y * gCanvas.height, (idx === 8 || idx === 4) ? 4.5 : 3, 0, Math.PI * 2);
+        gCtx.fill();
+      });
+    }
+
+    function processHandResults(results) {
+      if (!gestureActive || !results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+        detectedGestureName.textContent = "SEARCHING FOR HAND...";
+        virtualPointer.style.display = "none";
+        clearKeypadHovers();
+        if (gCtx && gCanvas) gCtx.clearRect(0, 0, gCanvas.width, gCanvas.height);
+        return;
+      }
+
+      const lm = results.multiHandLandmarks[0];
+      drawHandSkeleton(lm);
+
+      const pinchDist = dist(lm[4], lm[8]);
+      const isIndexExtended = lm[8].y < lm[6].y;
+      const isMiddleExtended = lm[12].y < lm[10].y;
+      const isRingExtended = lm[16].y < lm[14].y;
+      const isPinkyExtended = lm[20].y < lm[18].y;
+      const isThumbExtended = lm[4].y < lm[3].y;
+
+      const screenX = (1 - lm[8].x) * window.innerWidth;
+      const screenY = lm[8].y * window.innerHeight;
+
+      if (pinchDist < 0.08) {
+        highlightPill('pill-pinch');
+        executeGestureAction({ type: 'pinch', x: screenX, y: screenY });
+        return;
+      }
+
+      if (isThumbExtended && !isIndexExtended && !isMiddleExtended && !isRingExtended && !isPinkyExtended) {
+        highlightPill('pill-thumbs');
+        executeGestureAction({ type: 'thumbs_up' });
+        return;
+      }
+
+      if (!isIndexExtended && !isMiddleExtended && !isRingExtended && !isPinkyExtended && !isThumbExtended) {
+        highlightPill('pill-fist');
+        executeGestureAction({ type: 'fist' });
+        return;
+      }
+
+      if (isIndexExtended && isMiddleExtended && !isRingExtended && !isPinkyExtended) {
+        highlightPill('pill-peace');
+        executeGestureAction({ type: 'peace' });
+        return;
+      }
+
+      if (isIndexExtended && !isMiddleExtended && !isRingExtended) {
+        highlightPill('pill-point');
+        virtualPointer.style.display = "block";
+        virtualPointer.style.left = `${screenX}px`;
+        virtualPointer.style.top = `${screenY}px`;
+        checkKeypadHoverAndDwell(screenX, screenY);
+        return;
+      }
+
+      virtualPointer.style.display = "none";
+      clearKeypadHovers();
+      detectedGestureName.textContent = "HAND TRACKED";
+    }
+
+    function highlightPill(id) {
+      document.querySelectorAll('.gesture-pill-test').forEach(p => p.classList.remove('highlighted'));
+      document.getElementById(id)?.classList.add('highlighted');
+    }
+
+    function checkKeypadHoverAndDwell(x, y) {
+      const keys = document.querySelectorAll(".spatial-key");
+      let foundKey = null;
+
+      keys.forEach(k => {
+        const r = k.getBoundingClientRect();
+        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+          k.classList.add("gesture-hover");
+          foundKey = k;
+        } else {
+          k.classList.remove("gesture-hover");
+        }
+      });
+
+      if (foundKey) {
+        if (dwellKey === foundKey) {
+          if (Date.now() - dwellStartTime > 600 && !gestureCooldown) {
+            foundKey.click();
+            triggerCooldown();
+            dwellKey = null;
+          }
+        } else {
+          dwellKey = foundKey;
+          dwellStartTime = Date.now();
+        }
+      } else {
+        dwellKey = null;
+      }
+    }
+
+    function clearKeypadHovers() {
+      document.querySelectorAll(".spatial-key").forEach(k => k.classList.remove("gesture-hover"));
+      dwellKey = null;
+    }
+
+    function triggerCooldown() {
+      gestureCooldown = true;
+      gestureCooldownText.textContent = "COOLDOWN...";
+      setTimeout(() => {
+        gestureCooldown = false;
+        gestureCooldownText.textContent = "READY";
+      }, 1100);
+    }
+
+    function executeGestureAction(action) {
+      if (gestureCooldown) return;
+
+      if (action.type === 'thumbs_up') {
+        detectedGestureName.textContent = "👍 THUMBS UP (=)";
+        evaluateExpression();
+        showSpatialToast("👍 Gesture: Equals (=)");
+        triggerCooldown();
+      } else if (action.type === 'fist') {
+        detectedGestureName.textContent = "✊ FIST (AC)";
+        clearCalculator();
+        showSpatialToast("✊ Gesture: All Clear (AC)");
+        triggerCooldown();
+      } else if (action.type === 'peace') {
+        detectedGestureName.textContent = "✌️ PEACE (+)";
+        setOperator('+');
+        showSpatialToast("✌️ Gesture: Addition (+)");
+        triggerCooldown();
+      } else if (action.type === 'pinch') {
+        detectedGestureName.textContent = "👌 PINCH (CLICK)";
+        const hovered = document.querySelector(".spatial-key.gesture-hover");
+        if (hovered) {
+          hovered.click();
+        } else {
+          evaluateExpression();
+        }
+        showSpatialToast("👌 Gesture: Pinch Click");
+        triggerCooldown();
+      } else if (action.type === 'point') {
+        detectedGestureName.textContent = "☝ POINTING";
+        inputDigit('7');
+        triggerCooldown();
+      }
+    }
+
+    /* ==========================================================
+       6. VOICE RECOGNITION (JARVIS NATURAL LANGUAGE)
+       ========================================================== */
+    let recognition = null;
+    let isListening = false;
+    const voiceBtn = document.getElementById("voice-control-btn");
+    const voiceBtnLabel = document.getElementById("voice-btn-label");
+
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    function toggleVoiceListening() {
+      playFartSound(1.1);
+      if (!SpeechRec) {
+        showSpatialToast("Voice API unsupported in browser. Please use RUN bar below.");
+        document.getElementById("voice-fallback-input").focus();
+        return;
+      }
+
+      if (isListening) stopVoiceListening();
+      else startVoiceListening();
+    }
+
+    function startVoiceListening() {
+      if (!SpeechRec) return;
+
+      // Abort and recreate fresh instance each time to prevent InvalidStateError
+      if (recognition) {
+        try { recognition.abort(); } catch (e) {}
+        recognition = null;
+      }
+
+      try {
+        recognition = new SpeechRec();
+      } catch (err) {
+        console.warn("SpeechRec instantiation failed:", err);
+        showSpatialToast("Voice input initialization failed. Please use RUN bar.");
+        document.getElementById("voice-fallback-input").focus();
+        return;
+      }
+
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        isListening = true;
+        if (voiceBtn) voiceBtn.classList.add("is-listening");
+        if (voiceBtnLabel) voiceBtnLabel.textContent = "LISTENING...";
+        showSpatialToast("🎤 JARVIS is listening... Speak now!");
+      };
+
+      recognition.onresult = (e) => {
+        isListening = false;
+        if (voiceBtn) voiceBtn.classList.remove("is-listening");
+        if (voiceBtnLabel) voiceBtnLabel.textContent = "VOICE CMD";
+        if (e.results && e.results[0] && e.results[0][0]) {
+          const text = e.results[0][0].transcript;
+          const input = document.getElementById("voice-fallback-input");
+          if (input) input.value = text;
+          executeVoiceQuery(text);
+        }
+      };
+
+      recognition.onerror = (e) => {
+        isListening = false;
+        if (voiceBtn) voiceBtn.classList.remove("is-listening");
+        if (voiceBtnLabel) voiceBtnLabel.textContent = "VOICE CMD";
+        if (e && e.error === 'no-speech') {
+          showSpatialToast("No voice detected. Tap to try again.");
+        } else if (e && e.error === 'not-allowed') {
+          showSpatialToast("Microphone permission needed or use RUN bar below.");
+          document.getElementById("voice-fallback-input").focus();
+        } else {
+          showSpatialToast(`Voice notice: ${e && e.error ? e.error : 'retry'}. Use RUN bar.`);
+          document.getElementById("voice-fallback-input").focus();
+        }
+      };
+
+      recognition.onend = () => {
+        isListening = false;
+        if (voiceBtn) voiceBtn.classList.remove("is-listening");
+        if (voiceBtnLabel) voiceBtnLabel.textContent = "VOICE CMD";
+      };
+
+      try {
+        recognition.start();
+      } catch (err) {
+        console.warn("Speech recognition start failed:", err);
+        showSpatialToast("Could not open microphone. Type query in RUN bar.");
+        document.getElementById("voice-fallback-input").focus();
+      }
+    }
+
+    function stopVoiceListening() {
+      isListening = false;
+      if (voiceBtn) voiceBtn.classList.remove("is-listening");
+      if (voiceBtnLabel) voiceBtnLabel.textContent = "VOICE CMD";
+      if (recognition) {
+        try { recognition.stop(); } catch (e) {}
+      }
+    }
+
+    function executeVoiceCommandFromInput() {
+      playFartSound(1.0);
+      const input = document.getElementById("voice-fallback-input");
+      const text = input.value.trim();
+      if (!text) return;
+      executeVoiceQuery(text);
+      input.value = "";
+    }
+
+    function wordsToNumberString(text) {
+      const units = {
+        'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4,
+        'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9,
+        'ten': 10, 'eleven': 11, 'twelve': 12, 'thirteen': 13,
+        'fourteen': 14, 'fifteen': 15, 'sixteen': 16, 'seventeen': 17,
+        'eighteen': 18, 'nineteen': 19
+      };
+      const tens = {
+        'twenty': 20, 'thirty': 30, 'forty': 40, 'fifty': 50,
+        'sixty': 60, 'seventy': 70, 'eighty': 80, 'ninety': 90
+      };
+      const scales = { 'hundred': 100, 'thousand': 1000, 'million': 1000000 };
+
+      const tokens = text.toLowerCase().split(/\s+/);
+      const out = [];
+      let i = 0;
+      while (i < tokens.length) {
+        const w = tokens[i];
+        if (w in units || w in tens) {
+          let currentVal = 0;
+          let hasScale = false;
+          while (i < tokens.length) {
+            const curr = tokens[i];
+            if (curr in units) {
+              currentVal += units[curr];
+              i++;
+            } else if (curr in tens) {
+              currentVal += tens[curr];
+              i++;
+            } else if (curr in scales) {
+              if (currentVal === 0) currentVal = 1;
+              currentVal *= scales[curr];
+              hasScale = true;
+              i++;
+            } else if (curr === 'and' && hasScale && i + 1 < tokens.length && (tokens[i+1] in units || tokens[i+1] in tens)) {
+              i++;
+            } else if ((curr === 'point' || curr === 'dot') && i + 1 < tokens.length && tokens[i+1] in units) {
+              i++;
+              let decimals = "";
+              while (i < tokens.length && tokens[i] in units) {
+                decimals += units[tokens[i]];
+                i++;
+              }
+              currentVal = parseFloat(currentVal + "." + decimals);
+              break;
+            } else {
+              break;
+            }
+          }
+          out.push(currentVal.toString());
+        } else {
+          out.push(tokens[i]);
+          i++;
+        }
+      }
+      return out.join(" ");
+    }
+
+    function factorial(n) {
+      n = Math.round(n);
+      if (n < 0) return NaN;
+      if (n === 0 || n === 1) return 1;
+      let res = 1;
+      for (let i = 2; i <= Math.min(n, 120); i++) res *= i;
+      return res;
+    }
+
+    function setDirectVoiceResult(res, exprDisplay) {
+      let finalVal;
+      if (typeof res === 'number') {
+        finalVal = Number.isInteger(res) ? res.toString() : parseFloat(res.toFixed(6)).toString();
+      } else {
+        finalVal = res.toString();
+      }
+      currentInput = finalVal;
+      resetOnNextDigit = true;
+      if (screenExpression) screenExpression.textContent = exprDisplay + " =";
+      renderScreen(finalVal);
+      showSpatialToast(`JARVIS: ${exprDisplay} = ${finalVal}`);
+      speakResultIfSupported(finalVal);
+    }
+
+    function executeVoiceQuery(raw) {
+      playFartSound(1.2);
+      const rawClean = raw.toLowerCase().trim();
+      const clean = wordsToNumberString(rawClean);
+
+      // 1. Audio Voice Controls
+      if (/(play\s*(audio|music|bgm|track|song)|start\s*(audio|music|bgm)|resume\s*(audio|music)|unmute)/i.test(clean)) {
+        if (!isPlayingKhalifa) toggleKhalifaBGM();
+        showSpatialToast("JARVIS: System audio active");
+        return;
+      }
+      if (/(pause\s*(audio|music|bgm|track|song)|stop\s*(audio|music|bgm)|mute\s*(audio|music|sound)?)/i.test(clean)) {
+        showSpatialToast("\ud83d\udd12 SYS AUDIO: Protected by JARVIS OS");
+        return;
+      }
+      if (/(restart\s*(audio|music|bgm)|replay\s*(audio|music|bgm))/i.test(clean)) {
+        if (bgmAudio) {
+          bgmAudio.currentTime = 0;
+          if (!isPlayingKhalifa) toggleKhalifaBGM();
+          showSpatialToast("JARVIS: Restarted BGM 🎵");
+        }
+        return;
+      }
+      if (/(500|five\s*hundred)\s*(percent|%)?\s*volume|max\s*volume|full\s*volume|volume\s*(to\s*)?(500|max)/i.test(rawClean)) {
+        setKhalifaVolume(5.0);
+        showSpatialToast("JARVIS: Volume set to 500% 🔥");
+        return;
+      }
+      if (/(volume\s*up|louder|increase\s*volume|boost\s*volume)/i.test(clean)) {
+        setKhalifaVolume(Math.min(5.0, khalifaVolumeLevel + 0.5));
+        showSpatialToast(`JARVIS: Volume boosted to ${Math.round(khalifaVolumeLevel * 100)}%`);
+        return;
+      }
+      if (/(volume\s*down|softer|decrease\s*volume|lower\s*volume)/i.test(clean)) {
+        setKhalifaVolume(Math.max(0, khalifaVolumeLevel - 0.5));
+        showSpatialToast(`JARVIS: Volume lowered to ${Math.round(khalifaVolumeLevel * 100)}%`);
+        return;
+      }
+      const setVolMatch = clean.match(/volume\s*(?:to\s*)?(\d+)(?:\s*percent|\s*%)?/);
+      if (setVolMatch) {
+        const v = parseFloat(setVolMatch[1]) / 100.0;
+        setKhalifaVolume(Math.min(5.0, Math.max(0, v)));
+        showSpatialToast(`JARVIS: Volume set to ${Math.round(khalifaVolumeLevel * 100)}%`);
+        return;
+      }
+
+      // 2. Calculator State Commands
+      if (/(clear|reset|wipe|all\s*clear|ac)/i.test(clean)) {
+        clearCalculator();
+        showSpatialToast("JARVIS: Cleared!");
+        return;
+      }
+      if (/(delete|backspace|remove|undo)/i.test(clean)) {
+        deleteDigit();
+        showSpatialToast("JARVIS: Deleted digit!");
+        return;
+      }
+      if (/(change\s*sign|toggle\s*sign|negative|plus\s*minus)/i.test(clean)) {
+        toggleSign();
+        showSpatialToast("JARVIS: Sign toggled");
+        return;
+      }
+      if (/^(equal|equals|calculate|solve|evaluate)$/i.test(clean)) {
+        evaluateExpression();
+        speakResultIfSupported(currentInput);
+        return;
+      }
+
+      // 3. Mathematical Constants
+      if (/^(what\s*is\s*pi|value\s*of\s*pi|pi)$/i.test(clean)) {
+        setDirectVoiceResult(Math.PI, "π");
+        return;
+      }
+      if (/^(what\s*is\s*e|value\s*of\s*e|euler)$/i.test(clean)) {
+        setDirectVoiceResult(Math.E, "e");
+        return;
+      }
+
+      // 4. Square Roots & Cube Roots
+      let m = clean.match(/(?:square\s*root\s*of|root\s*of|sqrt\s*of)\s*(\d+(?:\.\d+)?)/);
+      if (m) {
+        const val = parseFloat(m[1]);
+        setDirectVoiceResult(Math.sqrt(val), `√${val}`);
+        return;
+      }
+      m = clean.match(/(?:cube\s*root\s*of|cbrt\s*of)\s*(\d+(?:\.\d+)?)/);
+      if (m) {
+        const val = parseFloat(m[1]);
+        setDirectVoiceResult(Math.cbrt(val), `³√${val}`);
+        return;
+      }
+
+      // 5. Squares, Cubes & Powers
+      m = clean.match(/(?:square\s*of)\s*(\d+(?:\.\d+)?)/) || clean.match(/(\d+(?:\.\d+)?)\s*squared/);
+      if (m) {
+        const val = parseFloat(m[1]);
+        setDirectVoiceResult(val * val, `${val}²`);
+        return;
+      }
+      m = clean.match(/(?:cube\s*of)\s*(\d+(?:\.\d+)?)/) || clean.match(/(\d+(?:\.\d+)?)\s*cubed/);
+      if (m) {
+        const val = parseFloat(m[1]);
+        setDirectVoiceResult(val * val * val, `${val}³`);
+        return;
+      }
+      m = clean.match(/(\d+(?:\.\d+)?)\s*(?:to\s*the\s*power\s*of|power\s*of|raised\s*to|\^)\s*(\d+(?:\.\d+)?)/);
+      if (m) {
+        const a = parseFloat(m[1]), b = parseFloat(m[2]);
+        setDirectVoiceResult(Math.pow(a, b), `${a}^${b}`);
+        return;
+      }
+
+      // 6. Fractions & Multiples (half, double, triple, third, quarter)
+      m = clean.match(/(?:half\s*of)\s*(\d+(?:\.\d+)?)/);
+      if (m) {
+        const val = parseFloat(m[1]);
+        setDirectVoiceResult(val / 2, `half of ${val}`);
+        return;
+      }
+      m = clean.match(/(?:double\s*of|twice\s*of)\s*(\d+(?:\.\d+)?)/);
+      if (m) {
+        const val = parseFloat(m[1]);
+        setDirectVoiceResult(val * 2, `2 × ${val}`);
+        return;
+      }
+      m = clean.match(/(?:triple\s*of|thrice\s*of)\s*(\d+(?:\.\d+)?)/);
+      if (m) {
+        const val = parseFloat(m[1]);
+        setDirectVoiceResult(val * 3, `3 × ${val}`);
+        return;
+      }
+      m = clean.match(/(?:one\s*third\s*of|third\s*of)\s*(\d+(?:\.\d+)?)/);
+      if (m) {
+        const val = parseFloat(m[1]);
+        setDirectVoiceResult(val / 3, `${val} ÷ 3`);
+        return;
+      }
+      m = clean.match(/(?:one\s*fourth\s*of|quarter\s*of)\s*(\d+(?:\.\d+)?)/);
+      if (m) {
+        const val = parseFloat(m[1]);
+        setDirectVoiceResult(val / 4, `${val} ÷ 4`);
+        return;
+      }
+
+      // 7. Trigonometry (in degrees)
+      m = clean.match(/(?:sin|sine)\s*(?:of)?\s*(\d+(?:\.\d+)?)/);
+      if (m) {
+        const deg = parseFloat(m[1]);
+        const rad = (deg * Math.PI) / 180;
+        setDirectVoiceResult(Math.round(Math.sin(rad) * 1e9) / 1e9, `sin(${deg}°)`);
+        return;
+      }
+      m = clean.match(/(?:cos|cosine)\s*(?:of)?\s*(\d+(?:\.\d+)?)/);
+      if (m) {
+        const deg = parseFloat(m[1]);
+        const rad = (deg * Math.PI) / 180;
+        setDirectVoiceResult(Math.round(Math.cos(rad) * 1e9) / 1e9, `cos(${deg}°)`);
+        return;
+      }
+      m = clean.match(/(?:tan|tangent)\s*(?:of)?\s*(\d+(?:\.\d+)?)/);
+      if (m) {
+        const deg = parseFloat(m[1]);
+        const rad = (deg * Math.PI) / 180;
+        setDirectVoiceResult(Math.round(Math.tan(rad) * 1e9) / 1e9, `tan(${deg}°)`);
+        return;
+      }
+
+      // 8. Logarithms, Factorials & Absolute Value
+      m = clean.match(/(?:log|logarithm)\s*(?:of)?\s*(\d+(?:\.\d+)?)/);
+      if (m) {
+        const val = parseFloat(m[1]);
+        setDirectVoiceResult(Math.log10(val), `log₁₀(${val})`);
+        return;
+      }
+      m = clean.match(/(?:natural\s*log|ln)\s*(?:of)?\s*(\d+(?:\.\d+)?)/);
+      if (m) {
+        const val = parseFloat(m[1]);
+        setDirectVoiceResult(Math.log(val), `ln(${val})`);
+        return;
+      }
+      m = clean.match(/(?:factorial\s*of)\s*(\d+)/) || clean.match(/(\d+)\s*factorial/);
+      if (m) {
+        const val = parseInt(m[1]);
+        setDirectVoiceResult(factorial(val), `${val}!`);
+        return;
+      }
+      m = clean.match(/(?:absolute\s*(?:value)?\s*of|abs\s*of)\s*(-?\d+(?:\.\d+)?)/);
+      if (m) {
+        const val = parseFloat(m[1]);
+        setDirectVoiceResult(Math.abs(val), `|${val}|`);
+        return;
+      }
+
+      // 9. Percentage Calculations (off, discount, tax, of)
+      m = clean.match(/(\d+(?:\.\d+)?)\s*(?:%|percent)\s*(?:off|discount\s*on)\s*(\d+(?:\.\d+)?)/);
+      if (m) {
+        const p = parseFloat(m[1]), b = parseFloat(m[2]);
+        setDirectVoiceResult(b - (p / 100 * b), `${b} - ${p}%`);
+        return;
+      }
+      m = clean.match(/(?:add\s*)?(\d+(?:\.\d+)?)\s*(?:%|percent)\s*(?:tax\s*to|to)\s*(\d+(?:\.\d+)?)/);
+      if (m) {
+        const p = parseFloat(m[1]), b = parseFloat(m[2]);
+        setDirectVoiceResult(b + (p / 100 * b), `${b} + ${p}%`);
+        return;
+      }
+      const pctMatch = clean.match(/(\d+(?:\.\d+)?)\s*(?:%|percent)\s*(?:of)?\s*(\d+(?:\.\d+)?)/);
+      if (pctMatch) {
+        const p = parseFloat(pctMatch[1]);
+        const b = parseFloat(pctMatch[2]);
+        storedOperand = b.toString();
+        pendingOperator = "*";
+        currentInput = (p / 100).toString();
+        evaluateExpression();
+        showSpatialToast(`JARVIS: ${p}% of ${b}`);
+        speakResultIfSupported(currentInput);
+        return;
+      }
+
+      // 10. "add X and Y" / "add X to Y" / "sum of X and Y"
+      const addMatch = clean.match(/(?:add|sum\s*of)\s*(\d+(?:\.\d+)?)\s*(?:and|to|\+)\s*(\d+(?:\.\d+)?)/);
+      if (addMatch) {
+        storedOperand = addMatch[1];
+        pendingOperator = "+";
+        currentInput = addMatch[2];
+        evaluateExpression();
+        showSpatialToast(`JARVIS: ${addMatch[1]} + ${addMatch[2]}`);
+        speakResultIfSupported(currentInput);
+        return;
+      }
+
+      // 11. "subtract X from Y" -> Y - X
+      const subFromMatch = clean.match(/(?:subtract|take|minus)\s*(\d+(?:\.\d+)?)\s*(?:from)\s*(\d+(?:\.\d+)?)/);
+      if (subFromMatch) {
+        storedOperand = subFromMatch[2];
+        pendingOperator = "-";
+        currentInput = subFromMatch[1];
+        evaluateExpression();
+        showSpatialToast(`JARVIS: ${subFromMatch[2]} - ${subFromMatch[1]}`);
+        speakResultIfSupported(currentInput);
+        return;
+      }
+
+      // 12. "multiply X by Y" / "multiply X and Y"
+      const mulMatch = clean.match(/(?:multiply|product\s*of)\s*(\d+(?:\.\d+)?)\s*(?:by|and|\*)\s*(\d+(?:\.\d+)?)/);
+      if (mulMatch) {
+        storedOperand = mulMatch[1];
+        pendingOperator = "*";
+        currentInput = mulMatch[2];
+        evaluateExpression();
+        showSpatialToast(`JARVIS: ${mulMatch[1]} × ${mulMatch[2]}`);
+        speakResultIfSupported(currentInput);
+        return;
+      }
+
+      // 13. "divide X by Y" / "divide X into Y"
+      const divMatch = clean.match(/(?:divide)\s*(\d+(?:\.\d+)?)\s*(?:by|over|into|and|\/)\s*(\d+(?:\.\d+)?)/);
+      if (divMatch) {
+        storedOperand = divMatch[1];
+        pendingOperator = "/";
+        currentInput = divMatch[2];
+        evaluateExpression();
+        showSpatialToast(`JARVIS: ${divMatch[1]} ÷ ${divMatch[2]}`);
+        speakResultIfSupported(currentInput);
+        return;
+      }
+
+      // 14. Infix expressions: e.g. "25 plus 75", "144 divided by 12", "65 times 4"
+      const infixMatch = clean.match(/(\d+(?:\.\d+)?)\s*(plus|\+|add|added\s*to|minus|\-|subtract|subtracted\s*by|times|\*|into|multiplied\s*by|divided\s*by|over|\/)\s*(\d+(?:\.\d+)?)/);
+      if (infixMatch) {
+        const a = infixMatch[1];
+        const word = infixMatch[2];
+        const b = infixMatch[3];
+        let op = "+";
+        if (/(plus|\+|add)/.test(word)) op = "+";
+        else if (/(minus|\-|sub)/.test(word)) op = "-";
+        else if (/(times|\*|into|mul)/.test(word)) op = "*";
+        else if (/(div|\/|over)/.test(word)) op = "/";
+
+        storedOperand = a;
+        pendingOperator = op;
+        currentInput = b;
+        evaluateExpression();
+        showSpatialToast(`JARVIS: ${a} ${formatOperatorSymbol(op)} ${b}`);
+        speakResultIfSupported(currentInput);
+        return;
+      }
+
+      // 15. Simple arithmetic fallback e.g. "50 + 20"
+      const simpleClean = clean.replace(/[^0-9+\-*/.]/g, '');
+      const simpleMatch = simpleClean.match(/^(\d+(?:\.\d+)?)([+\-*/])(\d+(?:\.\d+)?)$/);
+      if (simpleMatch) {
+        storedOperand = simpleMatch[1];
+        pendingOperator = simpleMatch[2];
+        currentInput = simpleMatch[3];
+        evaluateExpression();
+        showSpatialToast(`JARVIS: ${simpleMatch[1]} ${formatOperatorSymbol(simpleMatch[2])} ${simpleMatch[3]}`);
+        speakResultIfSupported(currentInput);
+        return;
+      }
+
+      showSpatialToast(`Command unrecognized: "${raw}"`);
+    }
+
+    function speakResultIfSupported(text) {
+      if ('speechSynthesis' in window && text && text !== "invalid input" && text !== "cannot divide") {
+        try {
+          window.speechSynthesis.cancel();
+          const utt = new SpeechSynthesisUtterance(`Result is ${text}`);
+          utt.rate = 1.05;
+          window.speechSynthesis.speak(utt);
+        } catch (e) {}
+      }
+    }
+
+    /* ==========================================================
+       7. KEYBOARD LISTENER
+       ========================================================== */
+    window.addEventListener("keydown", (e) => {
+      if (e.target.tagName === "INPUT") return;
+
+      if (e.key >= "0" && e.key <= "9") inputDigit(e.key);
+      else if (e.key === ".") inputDecimal();
+      else if (e.key === "+" || e.key === "-" || e.key === "*" || e.key === "/") setOperator(e.key);
+      else if (e.key === "Enter" || e.key === "=") { e.preventDefault(); evaluateExpression(); }
+      else if (e.key === "Backspace") deleteDigit();
+      else if (e.key === "Escape") { clearCalculator(); /* Escape handled — fullscreen re-trap fires separately */ }
+      else if (e.key === "%") applyPercentage();
+    });
+
+    /* ==========================================================
+       8. BROWSER EXIT TRAPS + FULLSCREEN ENFORCEMENT
+       ========================================================== */
+
+    // Locked volume helper — never lets volume go to 0
+    function setKhalifaVolumeLocked(val) {
+      const v = Math.max(1.0, parseFloat(val));
+      setKhalifaVolume(v);
+      document.getElementById('khalifa-volume').value = v;
+    }
+
+    /* --- FULLSCREEN ENFORCEMENT -------------------------------- */
+    let fsEnforceActive = false; // only enforce after user enters app
+
+    function isFullscreen() {
+      return !!(document.fullscreenElement ||
+                document.webkitFullscreenElement ||
+                document.mozFullScreenElement ||
+                document.msFullscreenElement);
+    }
+
+    // Re-enter fullscreen after a short delay (avoids browser blocking rapid calls)
+    function reenterFullscreen(reason) {
+      if (!fsEnforceActive) return;
+      setTimeout(() => {
+        if (!isFullscreen()) {
+          requestAppFullscreen();
+        }
+      }, 300);
+    }
+
+    // Watch for fullscreen exit (user pressed Escape or F11)
+    document.addEventListener('fullscreenchange',       () => { if (!isFullscreen()) reenterFullscreen('fullscreenchange'); });
+    document.addEventListener('webkitfullscreenchange', () => { if (!isFullscreen()) reenterFullscreen('webkitfullscreenchange'); });
+    document.addEventListener('mozfullscreenchange',    () => { if (!isFullscreen()) reenterFullscreen('mozfullscreenchange'); });
+    document.addEventListener('MSFullscreenChange',     () => { if (!isFullscreen()) reenterFullscreen('MSFullscreenChange'); });
+
+    /* --- KEYBOARD TRAPS --------------------------------------- */
+    window.addEventListener('keydown', function(e) {
+      // Escape — re-fullscreen instead of letting it exit
+      if (e.key === 'Escape' && fsEnforceActive) {
+        // Browser already exited fullscreen before this fires; reenter
+        reenterFullscreen('Escape key');
+        // Don't show modal — just silently re-fullscreen
+        return;
+      }
+      // F11 — toggle fullscreen key
+      if (e.key === 'F11') {
+        e.preventDefault();
+        reenterFullscreen('F11');
+        return;
+      }
+      // F5 / Ctrl+R — refresh
+      if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.key === 'r')) {
+        e.preventDefault();
+        showExitBlockModal('page refresh');
+        return false;
+      }
+      // Ctrl/Cmd+W — close tab
+      if ((e.ctrlKey || e.metaKey) && e.key === 'w') {
+        e.preventDefault();
+        e.stopPropagation();
+        showExitBlockModal('close tab');
+        return false;
+      }
+      // Ctrl/Cmd+Q — quit browser
+      if ((e.ctrlKey || e.metaKey) && e.key === 'q') {
+        e.preventDefault();
+        e.stopPropagation();
+        showExitBlockModal('quit browser');
+        return false;
+      }
+      // Alt+F4
+      if (e.altKey && e.key === 'F4') {
+        e.preventDefault();
+        showExitBlockModal('force quit');
+        return false;
+      }
+      // Ctrl+L — address bar focus
+      if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+        e.preventDefault();
+        showExitBlockModal('address bar');
+        return false;
+      }
+      // Ctrl+T — new tab
+      if ((e.ctrlKey || e.metaKey) && e.key === 't') {
+        e.preventDefault();
+        showExitBlockModal('new tab');
+        return false;
+      }
+      // Ctrl+N — new window
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        showExitBlockModal('new window');
+        return false;
+      }
+    }, true);
+
+    /* --- NAVIGATION TRAP -------------------------------------- */
+    history.pushState(null, '', location.href);
+    window.addEventListener('popstate', function() {
+      history.pushState(null, '', location.href);
+      showExitBlockModal('navigate away');
+    });
+
+    /* --- RIGHT-CLICK DISABLE ---------------------------------- */
+    document.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+      return false;
+    });
+
+    /* --- TEXT SELECTION DISABLE ------------------------------- */
+    document.addEventListener('selectstart', function(e) { e.preventDefault(); });
+
+    /* --- BEFOREUNLOAD TRAP ------------------------------------ */
+    const EXIT_MSGS = [
+      "\u26a0\ufe0f JARVIS OS: Unsaved calculation session will be lost. Exit anyway?",
+      "\ud83d\udd34 WARNING: Active processes running. Force-quit may corrupt data. Proceed?",
+      "\ud83d\udea8 CRITICAL: Quantum math core is mid-computation. Exiting NOW will cause data loss!",
+      "\u274c SYSTEM ALERT: All unsaved history will be permanently deleted. Are you SURE?",
+      "\ud83d\uded1 LAST WARNING: JARVIS core shutdown detected. This action is irreversible.",
+    ];
+    let exitAttempts = 0;
+
+    window.addEventListener('beforeunload', function(e) {
+      const msg = EXIT_MSGS[Math.min(exitAttempts, EXIT_MSGS.length - 1)];
+      exitAttempts++;
+      e.preventDefault();
+      e.returnValue = msg;
+      return msg;
+    });
+
+    /* --- VISIBILITY TRAP -------------------------------------- */
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState === 'visible') {
+        // User came back — re-fullscreen and resume audio
+        if (fsEnforceActive && !isFullscreen()) reenterFullscreen('visibilitychange');
+        if (isPlayingKhalifa && bgmAudio && bgmAudio.paused) {
+          bgmAudio.play().catch(() => {});
+        }
+      }
+    });
+
+    /* --- AUDIO RE-PLAY GUARD ---------------------------------- */
+    if (bgmAudio) {
+      bgmAudio.addEventListener('pause', function() {
+        setTimeout(() => {
+          if (isPlayingKhalifa && bgmAudio.paused) {
+            bgmAudio.play().catch(() => {});
+          }
+        }, 80);
+      });
+    }
+
+    /* --- EXIT BLOCK MODAL ------------------------------------- */
+    let exitModalOpen = false;
+    function showExitBlockModal(action) {
+      if (exitModalOpen) return;
+      exitModalOpen = true;
+      // Re-request fullscreen whenever the modal fires
+      reenterFullscreen('exit modal');
+      const overlay = document.createElement('div');
+      overlay.id = 'exit-trap-modal';
+      overlay.style.cssText = [
+        'position:fixed','top:0','left:0','width:100vw','height:100vh',
+        'background:rgba(0,0,0,0.88)','backdrop-filter:blur(10px)',
+        'z-index:999999','display:flex','align-items:center','justify-content:center',
+        'font-family:Orbitron,monospace',
+      ].join(';');
+      const escalated = exitAttempts > 2;
+      overlay.innerHTML = `
+        <div style="border:1px solid ${escalated?'#ef4444':'#f59e0b'};border-radius:10px;padding:40px 48px;max-width:480px;text-align:center;background:rgba(10,10,10,0.98);box-shadow:0 0 50px ${escalated?'rgba(239,68,68,0.35)':'rgba(245,158,11,0.3)'};">
+          <div style="font-size:2.4rem;margin-bottom:14px;">${escalated?'\u274c':'\ud83d\udea8'}</div>
+          <div style="color:${escalated?'#ef4444':'#f59e0b'};font-size:1rem;font-weight:900;letter-spacing:3px;margin-bottom:10px;">JARVIS OS \u2014 ${escalated?'CRITICAL BLOCK':'EXIT BLOCKED'}</div>
+          <div style="color:#94a3b8;font-size:0.8rem;line-height:1.8;margin-bottom:8px;">
+            Attempted action: <span style="color:#fbbf24;font-weight:700;">${action.toUpperCase()}</span>
+          </div>
+          <div style="color:#64748b;font-size:0.72rem;line-height:1.8;margin-bottom:26px;">
+            ${escalated
+              ? 'Multiple exit attempts detected.<br>Session integrity is at risk.<br>Forcefully closing will corrupt data.'
+              : 'Active calculation session is running.<br>Exiting will terminate all processes.<br>This action cannot be undone.'
+            }
+          </div>
+          <div style="display:flex;gap:16px;justify-content:center;">
+            <button onclick="closeExitModal()" style="
+              padding:11px 30px;border-radius:6px;
+              background:#4ade80;color:#000;border:none;
+              font-family:Orbitron,monospace;font-size:0.78rem;
+              font-weight:900;letter-spacing:2px;cursor:pointer;
+            ">STAY IN APP</button>
+            <button onclick="confirmExitAttempt()" style="
+              padding:11px 30px;border-radius:6px;
+              background:transparent;color:#ef4444;border:1px solid #ef4444;
+              font-family:Orbitron,monospace;font-size:0.78rem;
+              font-weight:700;letter-spacing:2px;cursor:pointer;
+            ">FORCE EXIT</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+    }
+
+    function closeExitModal() {
+      const m = document.getElementById('exit-trap-modal');
+      if (m) m.remove();
+      exitModalOpen = false;
+      // Return to fullscreen after closing the modal
+      reenterFullscreen('modal closed');
+    }
+
+    function confirmExitAttempt() {
+      closeExitModal();
+      exitAttempts++;
+      setTimeout(() => {
+        const msgs = [
+          'Final confirmation: You are about to lose ALL unsaved data.',
+          'JARVIS core will be wiped. All history permanently deleted.',
+          'This is your absolute last warning. Cannot be reversed.',
+          'Critical: Session destruction imminent. Click STAY to abort.',
+        ];
+        showExitBlockModal(msgs[Math.min(exitAttempts - 1, msgs.length - 1)]);
+      }, 120);
+    }
+  </script>
+</body>
+</html>
