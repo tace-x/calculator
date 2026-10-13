@@ -1239,9 +1239,8 @@
       </header>
 
       <!-- KHALIFA MALAYALAM MOVIE BGM MODULE (AUDIO.MP3) -->
-      <audio id="khalifa-audio-element" src="audio.mp3" loop preload="auto" autoplay>
+      <audio id="khalifa-audio-element" src="audio.mp3" loop preload="auto" autoplay playsinline>
         <source src="audio.mp3" type="audio/mpeg">
-        <source src="audio.mp3.mpeg" type="audio/mpeg">
       </audio>
       <section class="khalifa-audio-deck" id="khalifa-audio-deck">
         <div class="khalifa-title-tag">
@@ -1506,13 +1505,9 @@
 
     /* ==========================================================
        2. MALAYALAM MOVIE "KHALIFA" BGM ENGINE (audio.mp3)
-       (Plays audio.mp3 "Asalayavale" with fallback synthesis)
        ========================================================== */
     let isPlayingKhalifa = false;
-    let khalifaInterval = null;
-    let khalifaMasterGain = null;
     let khalifaVolumeLevel = 5.0; // 500% Volume by default
-    let khalifaStep = 0;
     const bgmAudio = document.getElementById("khalifa-audio-element");
     let bgmSourceNode = null;
     let bgmGainNode = null;
@@ -1613,14 +1608,9 @@
             playPromise.then(() => {
               // no toast — audio is hidden
             }).catch((err) => {
-              console.warn("Direct play error, fallback to synthesis:", err);
-              startKhalifaSequence();
-              // no toast — silent
+              console.warn("Direct play error:", err);
             });
           }
-        } else {
-          startKhalifaSequence();
-          // no toast — silent
         }
       }
     }
@@ -1632,9 +1622,6 @@
       }
       if (bgmGainNode && audioCtx) {
         bgmGainNode.gain.setValueAtTime(khalifaVolumeLevel, audioCtx.currentTime);
-      }
-      if (khalifaMasterGain && audioCtx) {
-        khalifaMasterGain.gain.setValueAtTime(khalifaVolumeLevel * 0.45, audioCtx.currentTime);
       }
       const volBadge = document.getElementById("vol-percent-badge");
       if (volBadge) {
@@ -1717,12 +1704,9 @@
         const p = bgmAudio.play();
         if (p !== undefined) {
           p.catch((err) => {
-            console.warn("Direct play failed, starting synthesis fallback:", err);
-            startKhalifaSequence();
+            console.warn("Direct play failed:", err);
           });
         }
-      } else {
-        startKhalifaSequence();
       }
     }
 
@@ -1778,213 +1762,6 @@
     window.addEventListener("DOMContentLoaded", autoStartAudio);
     window.addEventListener("load", autoStartAudio);
     setTimeout(autoStartAudio, 100);
-
-    function stopKhalifaSequence() {
-      if (khalifaInterval) {
-        clearInterval(khalifaInterval);
-        khalifaInterval = null;
-      }
-    }
-
-    // Hijaz Maqam / D Phrygian Dominant Scale Frequencies (Fallback Synthesizer)
-    const KHALIFA_NOTES = {
-      'D3': 146.83, 'Eb3': 155.56, 'F#3': 185.00, 'G3': 196.00, 'A3': 220.00,
-      'D4': 293.66, 'Eb4': 311.13, 'F#4': 369.99, 'G4': 392.00, 'A4': 440.00, 'Bb4': 466.16, 'C5': 523.25, 'D5': 587.33,
-      '_': 0
-    };
-
-    const KHALIFA_BRASS_SEQUENCE = [
-      'D4', 'Eb4', 'F#4', 'G4', 'F#4', 'Eb4', 'D4', '_',
-      'D4', 'F#4', 'A4', 'G4', 'F#4', 'Eb4', 'D4', '_'
-    ];
-
-    const KHALIFA_BASS_SEQUENCE = [
-      'D3', 'D3', 'Eb3', 'D3', 'D3', 'D3', 'F#3', 'Eb3',
-      'D3', 'D3', 'Eb3', 'D3', 'D3', 'D3', 'A3', 'D3'
-    ];
-
-    function startKhalifaSequence() {
-      const ctx = getAudioContext();
-      if (!ctx) return;
-
-      if (!khalifaMasterGain) {
-        khalifaMasterGain = ctx.createGain();
-        khalifaMasterGain.gain.setValueAtTime(khalifaVolumeLevel * 0.45, ctx.currentTime);
-        khalifaMasterGain.connect(ctx.destination);
-      }
-
-      khalifaStep = 0;
-      // 128 BPM -> 16th notes = ~117ms per step
-      const stepDuration = 120; // ms
-
-      khalifaInterval = setInterval(() => {
-        if (!isPlayingKhalifa) return;
-        const now = ctx.currentTime;
-        const stepIdx = khalifaStep % 16;
-
-        // 1. Play Heavy Cinematic Brass Horn Lead
-        const brassNote = KHALIFA_BRASS_SEQUENCE[stepIdx];
-        if (brassNote && brassNote !== '_') {
-          playKhalifaBrass(KHALIFA_NOTES[brassNote], now);
-        }
-
-        // 2. Play Heavy 808 Sub-Bass
-        const bassNote = KHALIFA_BASS_SEQUENCE[stepIdx];
-        if (bassNote && bassNote !== '_') {
-          playKhalifa808Bass(KHALIFA_NOTES[bassNote], now);
-        }
-
-        // 3. Cinematic Trap Drums (Kick on 0, 8; Snare on 4, 12; Hi-Hats every step)
-        playKhalifaHiHat(now);
-        if (stepIdx === 0 || stepIdx === 6 || stepIdx === 8 || stepIdx === 14) {
-          playKhalifaKick(now);
-        }
-        if (stepIdx === 4 || stepIdx === 12) {
-          playKhalifaSnare(now);
-        }
-
-        khalifaStep++;
-      }, stepDuration);
-    }
-
-    // Heavy Cinematic Brass Synth (D minor Hijaz lead)
-    function playKhalifaBrass(freq, time) {
-      if (!audioCtx || !khalifaMasterGain) return;
-      try {
-        const osc1 = audioCtx.createOscillator();
-        const osc2 = audioCtx.createOscillator();
-        const filter = audioCtx.createBiquadFilter();
-        const gain = audioCtx.createGain();
-
-        osc1.type = 'sawtooth';
-        osc2.type = 'sawtooth';
-        osc1.frequency.setValueAtTime(freq, time);
-        osc2.frequency.setValueAtTime(freq * 1.006, time); // Subtle detune for rich brass width
-
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(freq * 3.5, time);
-        filter.frequency.exponentialRampToValueAtTime(freq * 1.5, time + 0.18);
-        filter.Q.setValueAtTime(5, time);
-
-        gain.gain.setValueAtTime(0.35, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.19);
-
-        osc1.connect(filter);
-        osc2.connect(filter);
-        filter.connect(gain);
-        gain.connect(khalifaMasterGain);
-
-        osc1.start(time);
-        osc2.start(time);
-        osc1.stop(time + 0.2);
-        osc2.stop(time + 0.2);
-      } catch (e) {}
-    }
-
-    // Heavy 808 Sub-Bass Punch
-    function playKhalifa808Bass(freq, time) {
-      if (!audioCtx || !khalifaMasterGain) return;
-      try {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq * 0.5, time); // Drop down an octave
-        osc.frequency.exponentialRampToValueAtTime(freq * 0.45, time + 0.22);
-
-        gain.gain.setValueAtTime(0.65, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.24);
-
-        osc.connect(gain);
-        gain.connect(khalifaMasterGain);
-
-        osc.start(time);
-        osc.stop(time + 0.25);
-      } catch (e) {}
-    }
-
-    // Punchy Trap Kick
-    function playKhalifaKick(time) {
-      if (!audioCtx || !khalifaMasterGain) return;
-      try {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-
-        osc.frequency.setValueAtTime(140, time);
-        osc.frequency.exponentialRampToValueAtTime(38, time + 0.12);
-
-        gain.gain.setValueAtTime(0.7, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.13);
-
-        osc.connect(gain);
-        gain.connect(khalifaMasterGain);
-
-        osc.start(time);
-        osc.stop(time + 0.14);
-      } catch (e) {}
-    }
-
-    // Sharp Trap Snare
-    function playKhalifaSnare(time) {
-      if (!audioCtx || !khalifaMasterGain) return;
-      try {
-        const bufferSize = Math.floor(audioCtx.sampleRate * 0.1);
-        const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-        const data = noiseBuffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
-        }
-
-        const noise = audioCtx.createBufferSource();
-        noise.buffer = noiseBuffer;
-
-        const filter = audioCtx.createBiquadFilter();
-        filter.type = 'highpass';
-        filter.frequency.setValueAtTime(1200, time);
-
-        const gain = audioCtx.createGain();
-        gain.gain.setValueAtTime(0.4, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
-
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(khalifaMasterGain);
-
-        noise.start(time);
-        noise.stop(time + 0.11);
-      } catch (e) {}
-    }
-
-    // Rolling Trap Hi-Hat
-    function playKhalifaHiHat(time) {
-      if (!audioCtx || !khalifaMasterGain) return;
-      try {
-        const bufferSize = Math.floor(audioCtx.sampleRate * 0.035);
-        const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-        const data = noiseBuffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-          data[i] = (Math.random() * 2 - 1);
-        }
-
-        const noise = audioCtx.createBufferSource();
-        noise.buffer = noiseBuffer;
-
-        const filter = audioCtx.createBiquadFilter();
-        filter.type = 'highpass';
-        filter.frequency.setValueAtTime(7500, time);
-
-        const gain = audioCtx.createGain();
-        gain.gain.setValueAtTime(0.18, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.035);
-
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(khalifaMasterGain);
-
-        noise.start(time);
-        noise.stop(time + 0.04);
-      } catch (e) {}
-    }
 
     /* ==========================================================
        3. ANIMATED MATRIX DIGITAL RAIN (JARVIS HACKER BACKGROUND)
