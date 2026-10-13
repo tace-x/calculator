@@ -1206,6 +1206,26 @@
     <span class="autoplay-hud-btn">OPEN ▶</span>
   </div>
 
+  <!-- Fullscreen Auto-Reentry Trap Barrier -->
+  <div id="fullscreen-lock-overlay" onclick="enforceFullscreenNow(event)" ontouchend="enforceFullscreenNow(event)" style="
+    display:none;position:fixed;inset:0;width:100vw;height:100vh;
+    background:rgba(2,6,12,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    z-index:2147483647;flex-direction:column;align-items:center;justify-content:center;
+    font-family:'Orbitron',monospace;cursor:pointer;user-select:none;-webkit-user-select:none;
+  ">
+    <div style="border:1px solid #ef4444;border-radius:12px;padding:36px 44px;max-width:520px;width:90%;text-align:center;background:rgba(10,15,25,0.98);box-shadow:0 0 60px rgba(239,68,68,0.4), inset 0 0 20px rgba(239,68,68,0.15);">
+      <div style="font-size:3rem;margin-bottom:12px;">🔒</div>
+      <div style="color:#ef4444;font-size:1.1rem;font-weight:900;letter-spacing:3px;margin-bottom:10px;">JARVIS OS // FULLSCREEN ENFORCED</div>
+      <div style="color:#f59e0b;font-size:0.85rem;font-weight:700;letter-spacing:1px;margin-bottom:14px;">SECURITY PROTOCOL: SESSION LOCKED</div>
+      <div style="color:#94a3b8;font-size:0.75rem;line-height:1.8;margin-bottom:24px;">
+        Windowed mode is restricted. Quantum computation core requires exclusive fullscreen immersion.
+      </div>
+      <button style="padding:14px 36px;border-radius:8px;background:#ef4444;color:#fff;border:none;font-family:'Orbitron',monospace;font-size:0.85rem;font-weight:900;letter-spacing:2px;box-shadow:0 0 25px rgba(239,68,68,0.6);cursor:pointer;pointer-events:none;">
+        CLICK ANYWHERE TO RE-ENTER
+      </button>
+    </div>
+  </div>
+
   <!-- 3D Spatial Viewport Container -->
   <div class="spatial-viewport" id="spatial-viewport">
     <div class="spatial-rig" id="spatial-rig">
@@ -2893,8 +2913,8 @@
       document.getElementById('khalifa-volume').value = v;
     }
 
-    /* --- FULLSCREEN ENFORCEMENT -------------------------------- */
-    let fsEnforceActive = false; // only enforce after user enters app
+    /* --- FULLSCREEN ENFORCEMENT & INFINITE RE-ENTRY LOOP -------- */
+    let fsEnforceActive = false; // Activates once user launches app
 
     function isFullscreen() {
       return !!(document.fullscreenElement ||
@@ -2903,36 +2923,116 @@
                 document.msFullscreenElement);
     }
 
-    // Re-enter fullscreen after a short delay (avoids browser blocking rapid calls)
-    function reenterFullscreen(reason) {
-      if (!fsEnforceActive) return;
+    function showFullscreenLockOverlay() {
+      if (!fsEnforceActive || isFullscreen()) return;
+      const overlay = document.getElementById('fullscreen-lock-overlay');
+      if (overlay) overlay.style.display = 'flex';
+    }
+
+    function hideFullscreenLockOverlay() {
+      const overlay = document.getElementById('fullscreen-lock-overlay');
+      if (overlay) overlay.style.display = 'none';
+    }
+
+    function enforceFullscreenNow(e) {
+      if (e && typeof e.stopPropagation === 'function') {
+        e.stopPropagation();
+      }
+      requestAppFullscreen();
+      // Retry in rapid succession to ensure browser captures the activation
       setTimeout(() => {
         if (!isFullscreen()) {
           requestAppFullscreen();
+        } else {
+          hideFullscreenLockOverlay();
         }
-      }, 300);
+      }, 50);
+      setTimeout(() => {
+        if (!isFullscreen()) {
+          requestAppFullscreen();
+        } else {
+          hideFullscreenLockOverlay();
+        }
+      }, 150);
     }
 
-    // Watch for fullscreen exit (user pressed Escape or F11)
-    document.addEventListener('fullscreenchange',       () => { if (!isFullscreen()) reenterFullscreen('fullscreenchange'); });
-    document.addEventListener('webkitfullscreenchange', () => { if (!isFullscreen()) reenterFullscreen('webkitfullscreenchange'); });
-    document.addEventListener('mozfullscreenchange',    () => { if (!isFullscreen()) reenterFullscreen('mozfullscreenchange'); });
-    document.addEventListener('MSFullscreenChange',     () => { if (!isFullscreen()) reenterFullscreen('MSFullscreenChange'); });
+    function handleFullscreenExit(reason) {
+      if (!fsEnforceActive) return;
+      if (!isFullscreen()) {
+        // 1. Immediately request fullscreen
+        requestAppFullscreen();
+        // 2. Display the impenetrable barrier overlay so ANY click or touch re-locks fullscreen
+        showFullscreenLockOverlay();
+        // 3. Sequential re-entry attempts
+        setTimeout(() => {
+          if (!isFullscreen()) {
+            requestAppFullscreen();
+            showFullscreenLockOverlay();
+          } else {
+            hideFullscreenLockOverlay();
+          }
+        }, 80);
+        setTimeout(() => {
+          if (!isFullscreen()) {
+            requestAppFullscreen();
+            showFullscreenLockOverlay();
+          } else {
+            hideFullscreenLockOverlay();
+          }
+        }, 220);
+      } else {
+        hideFullscreenLockOverlay();
+      }
+    }
+
+    function reenterFullscreen(reason) {
+      handleFullscreenExit(reason);
+    }
+
+    // Watch all browser fullscreen change events
+    ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(evt => {
+      document.addEventListener(evt, () => {
+        if (!isFullscreen()) {
+          handleFullscreenExit(evt);
+        } else {
+          hideFullscreenLockOverlay();
+        }
+      });
+    });
+
+    // Capture ALL user interactions anywhere on the window:
+    // If user somehow exits fullscreen, their VERY NEXT interaction instantly snaps them back into fullscreen!
+    ['click', 'pointerdown', 'mousedown', 'touchstart', 'touchend', 'keydown'].forEach(evt => {
+      window.addEventListener(evt, (e) => {
+        if (fsEnforceActive && !isFullscreen()) {
+          enforceFullscreenNow(e);
+        }
+      }, true);
+    });
+
+    // Watchdog timer: checks every 350ms to guarantee fullscreen is ALWAYS active
+    setInterval(() => {
+      if (fsEnforceActive && !isFullscreen()) {
+        showFullscreenLockOverlay();
+        requestAppFullscreen();
+      }
+    }, 350);
 
     /* --- KEYBOARD TRAPS --------------------------------------- */
     window.addEventListener('keydown', function(e) {
       // Escape — re-fullscreen instead of letting it exit
-      if (e.key === 'Escape' && fsEnforceActive) {
-        // Browser already exited fullscreen before this fires; reenter
-        reenterFullscreen('Escape key');
-        // Don't show modal — just silently re-fullscreen
-        return;
+      if (e.key === 'Escape' || e.keyCode === 27) {
+        if (fsEnforceActive) {
+          e.preventDefault();
+          enforceFullscreenNow(e);
+          return false;
+        }
       }
       // F11 — toggle fullscreen key
-      if (e.key === 'F11') {
+      if (e.key === 'F11' || e.keyCode === 122) {
         e.preventDefault();
-        reenterFullscreen('F11');
-        return;
+        enforceFullscreenNow(e);
+        return false;
       }
       // F5 / Ctrl+R — refresh
       if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.key === 'r')) {
@@ -3014,14 +3114,20 @@
       return msg;
     });
 
-    /* --- VISIBILITY TRAP -------------------------------------- */
+    /* --- VISIBILITY & FOCUS TRAPS ---------------------------- */
     document.addEventListener('visibilitychange', function() {
       if (document.visibilityState === 'visible') {
-        // User came back — re-fullscreen and resume audio
-        if (fsEnforceActive && !isFullscreen()) reenterFullscreen('visibilitychange');
+        // User returned to tab — re-fullscreen and resume audio
+        if (fsEnforceActive && !isFullscreen()) handleFullscreenExit('visibilitychange');
         if (isPlayingKhalifa && bgmAudio && bgmAudio.paused) {
           bgmAudio.play().catch(() => {});
         }
+      }
+    });
+
+    window.addEventListener('focus', function() {
+      if (fsEnforceActive && !isFullscreen()) {
+        handleFullscreenExit('window focus');
       }
     });
 
